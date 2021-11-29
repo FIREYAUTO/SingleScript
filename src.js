@@ -455,7 +455,7 @@ const AST=Tokens=>{
                 Stop:false,
                 Call:function(Priority){
                 	this.Next();
-                    let Result = this.ParseExpression(-1);
+                    let Result = this.ParseExpression(-1,true);
                     this.TestNext("TK_PCLOSE","Bracket");
                     this.Next();
                 	return [Result,Priority];
@@ -527,9 +527,13 @@ const AST=Tokens=>{
                 	let Node = this.NewNode("NewFastFunction");
                     this.TestNext("TK_POPEN","Bracket");
                     this.Next(2);
-                    Node.Write("Parameters",this.IdentifierList());
-                    this.TestNext("TK_PCLOSE","Bracket");
-                    this.Next();
+                    if(!IsToken(this.Token,"TK_PCLOSE","Bracket")){
+                    	Node.Write("Parameters",this.IdentifierList());
+                        this.TestNext("TK_PCLOSE","Bracket");
+                    	this.Next();
+                    }else{
+                    	Node.Write("Parameters",[]);
+                    }
                     Node.Write("Body",this.CodeBlock());
                     return [Node,Priority];
                 },
@@ -585,7 +589,7 @@ const AST=Tokens=>{
             }while(true);
             return List;
         },
-        ParseExpression:function(Priority=-1){
+        ParseExpression:function(Priority=-1,CommaExpression=false){
         	let Token = this.Token;
             if(!Token){return null}
             let Result = null;
@@ -613,10 +617,23 @@ const AST=Tokens=>{
                     break;
                 }
             }
+            if(CommaExpression==true){
+            	if(this.CheckNext("TK_COMMA","Operator")){
+            		let List = [Result];
+                	while(this.CheckNext("TK_COMMA","Operator")){
+                		this.Next(2);
+                    	List.push(this.ParseExpression(Priority,false));
+                		if(this.IsEnd()){break}
+                	}
+                	Result=this.NewNode("CommaExpression");
+                	Result.Write("List",List);
+                	return Result;
+              	}
+            }
             return this.ParseComplexExpression(this.NewExpression(Result,Priority));
         },
-        ParseFullExpression:function(Priority=-1){
-        	let Result = this.ParseExpression();
+        ParseFullExpression:function(Priority=-1,CommaExpression=false){
+        	let Result = this.ParseExpression(Priority,CommaExpression);
             if(this.CheckNext("TK_LINEEND","Operator")){
             	this.Next();
             }
@@ -642,14 +659,6 @@ const AST=Tokens=>{
             return Block;
         },
         States:[
-        	{
-                Type:"Operator",
-                Write:true,
-                Call:function(){
-                	let Node = this.NewNode("If");
-                    return Node;
-                },
-            },
         	{
             	Value:"TK_IF",
                 Type:"Operator",
@@ -708,9 +717,13 @@ const AST=Tokens=>{
                     Node.Write("Name",this.Token.Value);
                     this.TestNext("TK_POPEN","Bracket");
                     this.Next(2);
-                    Node.Write("Parameters",this.IdentifierList());
-                    this.TestNext("TK_PCLOSE","Bracket");
-                    this.Next();
+                    if(!IsToken(this.Token,"TK_PCLOSE","Bracket")){
+                    	Node.Write("Parameters",this.IdentifierList());
+                        this.TestNext("TK_PCLOSE","Bracket");
+                    	this.Next();
+                    }else{
+                    	Node.Write("Parameters",[]);
+                    }
                     Node.Write("Body",this.CodeBlock());
                     return Node;
                 },
@@ -746,7 +759,7 @@ const AST=Tokens=>{
                 Call:function(){
                 	this.Next();
                     let Node = this.NewNode("Return");
-                    Node.Write("V1",this.ParseExpression(-1));
+                    Node.Write("V1",this.ParseExpression(-1,true));
                 	return Node;
                 },
             },
@@ -797,7 +810,7 @@ const AST=Tokens=>{
                 }
             }
             if(!Done){
-            	this.ChunkWrite(this.ParseFullExpression(-1));
+            	this.ChunkWrite(this.ParseFullExpression(-1,true));
             }else{
             	if(this.CheckNext("TK_LINEEND","Operator")){
                 	this.Next();
@@ -1124,6 +1137,14 @@ const Interpret=(Tokens,Environment)=>{
                     this.ParseBlock(ns);
                     if(ns.GetData("InLoop")==false)break;
                 }
+            },
+            "CommaExpression":function(State,Token){
+            	let List = Token.Read("List");
+                let Result = [];
+                for(let k in List){
+                	Result[k]=this.Parse(State,List[k]);
+                }
+                return Result[Result.length-1];
             },
         },
         ParseArray:function(State,Base){
