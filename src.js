@@ -468,7 +468,7 @@ const AST=Tokens=>{
                 Call:function(Priority){
                 	this.Next();
                     let Node = this.NewNode("Not");
-                    Node.Write("V1",this.ParseExpression(350));
+                    Node.Write("V1",this.ParseExpression(400));
                 	return [Node,Priority];
                 },
             },
@@ -479,7 +479,7 @@ const AST=Tokens=>{
                 Call:function(Priority){
                 	this.Next();
                     let Node = this.NewNode("Length");
-                    Node.Write("V1",this.ParseExpression(350));
+                    Node.Write("V1",this.ParseExpression(400));
                 	return [Node,Priority];
                 },
             },
@@ -1145,6 +1145,10 @@ const Interpret=(Tokens,Environment)=>{
                 	Result[k]=this.Parse(State,List[k]);
                 }
                 return Result[Result.length-1];
+            },
+            "Length":function(State,Token){
+            	let V1 = this.Parse(State,Token.Read("V1"));
+                return V1.length;
             },
         },
         ParseArray:function(State,Base){
