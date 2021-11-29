@@ -1,0 +1,44 @@
+/*
+NOTES: Please remove all JavaScript comments, as this language does not support comments.
+*/
+
+//Function
+
+#o(a,b){
+	< a^b;
+}
+#g(a,b){
+	@r = o(a,b);
+	< r+b;
+}
+l(g('5','2'));
+
+//Object
+
+@o = {
+	"hi"=T;
+};
+o."hi"=F;
+l(o."hi");
+
+//Array
+
+@a = ['1','5'];
+l(a.'1');
+
+//Iterable Loop
+
+@a=['1','5'];
+:<k,v> a {
+	l(k,v)
+}
+
+//Repeat Loop
+
+@a=['1','5'];
+~<>'2'{
+	~<i,m>'10'{
+		?i>'3'{>}
+		l(i,m);
+	}
+}
