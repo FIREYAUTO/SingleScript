@@ -42,3 +42,20 @@ l(a.'1');
 		l(i,m);
 	}
 }
+
+//Prime Numbers
+
+#p(a)~<i>a{@s=T;|k='2';k<i;k=k+'1'?i%k:'0'{s=F;>}?s&i>'1'l(i)}
+p('10');
+
+//Create HTML Element
+
+#A(a,b):<k,v>b?$v:"object"A(a[k],v);>a[k]=v;
+#G(t,p,a){@e=D."createElement"(t);?pA(e,p);?aa."appendChild"(e);<e}
+
+G("p",{
+	"innerHTML"="Hello, world!";
+	"style"={
+		"color"="#ff0000";
+	};
+},D."body");
