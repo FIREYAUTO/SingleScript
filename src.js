@@ -848,6 +848,11 @@ class LState {
         }
         this.Variables=[];
     }
+    TransferVariable(New,Var){
+    	if(!New.IsVariable(Var.Name)){
+        	New.Variables.push(Var);
+        }
+    }
     CodeData(Name,Value){
     	this.Data[Name]=Value;
         if(this.Parent){
@@ -891,7 +896,7 @@ class LState {
     	let Vars = this.GetAllUpperVariables();
     	for(let c of this.Children){
         	for(let v of Vars){
-            	c.NewVariable(v.Name,v.Value);
+            	this.TransferVariable(c,v);
             }
             c.Parent = undefined;
         }
@@ -1167,6 +1172,7 @@ const Interpret=(Tokens,Environment)=>{
         	let self = this;
             let Body = Token.Read("Body");
             let Parameters = Token.Read("Parameters");
+            let PVars = State.GetAllUpperVariables();
             let Callback = function(...Arguments){
           		let NewState = new LState(Body,State,{IsFunction:true});
             	NewState.IsFunction=true;
@@ -1176,6 +1182,9 @@ const Interpret=(Tokens,Environment)=>{
                     if(!pv){break}
                		NewState.NewVariable(pv,av);
                	}
+                for (let v of PVars){
+                	State.TransferVariable(NewState,v);
+                }
                 self.ParseBlock(NewState);
                 return NewState.GetData("Returns");
           	}
