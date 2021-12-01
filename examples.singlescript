@@ -59,3 +59,13 @@ G("p",{
 		"color"="#ff0000";
 	};
 },D."body");
+
+//Factorial
+
+@L=[];
+#f(n)?n:'0'|n:'1'{<'1'}|L[n]>'0'{<L[n]}><L[n]=f(n-'1')*n;
+l(f('3'));
+
+//Prime numbers between 0 and <Integer>
+
+~<i>'10'?^il(i);
