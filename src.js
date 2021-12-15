@@ -928,6 +928,39 @@ const AST=Tokens=>{
                     return Node;
                 },
             },
+            {
+            	Value:"TK_MUL",
+                Type:"Operator",
+                Write:true,
+                Call:function(){
+                	let Node = this.NewNode("Import");
+                    this.Next();
+                    if(this.Token.Type!="Identifier"){
+                    	throw Error("Expected variable name for import");
+                    }
+                    Node.Write("Name",this.Token.Value);
+                    this.Next();
+                    Node.Write("URL",this.ParseExpression(-1));
+                    Node.Write("Body",this.CodeBlock());
+                    return Node;
+                },
+            },
+            {
+            	Value:"TK_DOT",
+                Type:"Operator",
+                Write:true,
+                Call:function(){
+                	let Node = this.NewNode("Export");
+                    this.Next();
+                    if(this.Token.Type!="Identifier"&&this.Token.Type!="Constant"){
+                    	throw Error("Expected variable name for export");
+                    }
+                    Node.Write("Name",this.Token.Value);
+                    this.Next();
+                    Node.Write("Value",this.ParseExpression(-1));
+                    return Node;
+                },
+            },
             /*
         	{
             	Value:"",
@@ -989,6 +1022,7 @@ class LState {
         this.Token=Tokens.Data[0];
         this.Parent=Parent;
         this.Children=[];
+        this.Exports={};
         this.Data = {
         	Returned:false,
             Returns:undefined,
@@ -1001,6 +1035,7 @@ class LState {
         }
         if(Parent&&Parent instanceof LState){
         	Parent.Children.push(this);
+            this.Exports=Parent.Exports;
         }
         this.Variables=[];
     }
@@ -1401,6 +1436,36 @@ const Interpret=(Tokens,Environment)=>{
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
                 return V1 instanceof V2;
+            },
+            "Export":function(State,Token){
+            	let Name = this.Parse(State,Token.Read("Name"));
+                let Value = this.Parse(State,Token.Read("Value"));
+               	State.Exports[Name]=Value;
+            },
+            "Import":function(State,Token){
+            	let URL = this.Parse(State,Token.Read("URL"));
+                let Name = Token.Read("Name");
+                let Body = Token.Read("Body");
+                if(!URL.match(/(^http(s)?\:\/{2})/)){
+                	URL="https://fireyauto.github.io/SingleScript/imports/"+URL+".singlescript";
+                }
+               	let imported=undefined,xml=new XMLHttpRequest(),self=this,vs=State.GetAllUpperVariables(),v={};
+                for(let x of vs){
+                	v[x.Name]=x.Value;
+                }
+                xml.onreadystatechange=function(){
+                	if(this.readyState==this.DONE){
+                    	imported=RunCode(this.response,v).MainState.Exports;
+                        let ns = new LState(Body,State);
+                        ns.NewVariable(Name,imported);
+                        for(let k in v){
+                        	ns.NewVariable(k,v[k]);
+                        }
+                        self.ParseBlock(ns);
+                    }
+                }
+            	xml.open("GET",URL);
+      			xml.send();                
             },
         },
         ParseArray:function(State,Base){
