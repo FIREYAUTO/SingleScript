@@ -1,0 +1,9 @@
+#H(t,u,c,o){
+	@x=+W."XMLHttpRequest";
+	x."onreadystatechange"()?x."readyState":x."DONE"c(x.response);
+	x."open"(t,u);
+	x."send"(o);
+}
+
+."get"#(u,c)H("GET",u,c);
+."post"#(u,o,c)H("POST",u,c,o);
