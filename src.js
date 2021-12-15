@@ -28,6 +28,7 @@ const MainTokens = {
     "TK_NOT":{v:"!",t:"Operator"},
     "TK_FUNC":{v:"#",t:"Operator"},
     "TK_LOOP":{v:"~",t:"Operator"},
+    "TK_WHILE":{v:"$",t:"Operator"},
     //{{ String Tokens }}\\
     "TK_QUOTE":{v:"\"",t:"String"},
     //{{ String Tokens }}\\
@@ -44,6 +45,8 @@ const MainTokens = {
    	//{{ Boolean Token }}\\
     "TK_TRUE":{v:"T",t:"Boolean"},
     "TK_FALSE":{v:"F",t:"Boolean"},
+    //{{ Null Token }}\\
+    "TK_NULL":{v:"U",t:"Null"},
     //{{ Base Token }}\\
     //"TK_":{v:"",t:""},
 }
@@ -110,6 +113,11 @@ const Tokenize = Code=>{
         	t.Type="Constant";
             t.Value=t.Value=="TK_TRUE"?true:false;
             t.RawValue="Boolean";
+        }
+        else if(IsType(t,"Boolean")){
+        	t.Type="Constant";
+            t.Value=null;
+            t.RawValue="Null";
         }
         NewTokens.push(t);
     	s.i++;
@@ -269,7 +277,7 @@ const AST=Tokens=>{
             {
             	Value:"TK_POW",
                 Type:"Operator",
-                Priority:300,
+                Priority:380,
                 Call:function(Value,Priority){
                 	this.Next(2);
                 	let Result = this.NewNode("Pow");
@@ -394,6 +402,18 @@ const AST=Tokens=>{
                 Call:function(Value,Priority){
                 	this.Next(2);
                 	let Result = this.NewNode("Or");
+                    Result.Write("V1",Value);
+                    Result.Write("V2",this.ParseExpression(Priority));
+                	return this.NewExpression(Result,Priority);
+                },
+            },
+            {
+            	Value:"TK_IF",
+                Type:"Operator",
+                Priority:275,
+                Call:function(Value,Priority){
+                	this.Next(2);
+                	let Result = this.NewNode("IsA");
                     Result.Write("V1",Value);
                     Result.Write("V2",this.ParseExpression(Priority));
                 	return this.NewExpression(Result,Priority);
@@ -528,7 +548,7 @@ const AST=Tokens=>{
                     this.TestNext("TK_POPEN","Bracket");
                     this.Next(2);
                     if(!IsToken(this.Token,"TK_PCLOSE","Bracket")){
-                    	Node.Write("Parameters",this.IdentifierList());
+                    	Node.Write("Parameters",this.IdentifierList(true));
                         this.TestNext("TK_PCLOSE","Bracket");
                     	this.Next();
                     }else{
@@ -545,10 +565,84 @@ const AST=Tokens=>{
                 Call:function(Priority){
                 	let Node = this.NewNode("NewArray");
                     this.Next();
-                    Node.Write("Array",this.ExpressionList(-1));
-                    this.TestNext("TK_ICLOSE","Bracket");
-                    this.Next();
+                    if(!IsToken(this.Token,"TK_ICLOSE","Bracket")){
+                    	Node.Write("Array",this.ExpressionList(-1));
+                    	this.TestNext("TK_ICLOSE","Bracket");
+                    	this.Next();
+                    }else{
+                    	Node.Write("Array",[]);
+                    }
                     return [Node,Priority];
+                },
+            },
+            {
+            	Type:"Operator",
+                Value:"TK_WHILE",
+                Stop:false,
+                Call:function(Priority){
+                	let Node = this.NewNode("GetType");
+                    this.Next();
+                    Node.Write("Expression",this.ParseExpression(400));
+                    return [Node,Priority];
+                },
+            },
+            {
+            	Type:"Operator",
+                Value:"TK_POW",
+                Stop:false,
+                Call:function(Priority){
+                	let Node = this.NewNode("IsPrime");
+                    this.Next();
+                    Node.Write("V1",this.ParseExpression(400));
+                    return [Node,Priority];
+                },
+            },
+            {
+            	Type:"Operator",
+                Value:"TK_SUB",
+                Stop:false,
+                Call:function(Priority){
+                	let Node = this.NewNode("Negative");
+                    this.Next();
+                    Node.Write("V1",this.ParseExpression(400));
+                    return [Node,Priority];
+                },
+            },
+            {
+            	Value:"TK_MOD",
+                Type:"Operator",
+                Stop:true,
+                Call:function(Priority){
+                	let Node = this.NewNode("UpdateVariable");
+                   	this.Next();
+                    if(this.Token.Type!="Identifier"){
+                    	throw Error("Expected variable name");
+                    }
+                    Node.Write("Name",this.Token.Value);
+                    Node.Write("Expression",this.ParseExpression(-1));
+                    return [Node,Priority];
+                },
+            },
+            {
+            	Type:"Operator",
+                Value:"TK_ADD",
+                Stop:false,
+                Call:function(Priority){
+                	this.Next();
+                    let Node = this.NewNode("NewClass");
+                    Node.Write("V1",this.ParseExpression(400));
+                	return [Node,Priority];
+                },
+            },
+            {
+            	Type:"Operator",
+                Value:"TK_EQ",
+                Stop:false,
+                Call:function(Priority){
+                	this.Next();
+                    let Node = this.NewNode("MakeFastClass");
+                    Node.Write("Object",this.ParseExpression(-1));
+                	return [Node,Priority];
                 },
             },
         	/*
@@ -574,19 +668,31 @@ const AST=Tokens=>{
             }while(true);
             return List;
         },
-        IdentifierList:function(){
+        IdentifierList:function(AllowDefault=false,SkipEnds=false){
         	let List = [];
             do{
             	if(this.Token.Type!="Identifier"){
                 	throw Error(`Expected Identifier for function parameter, got ${this.Token.RawValue} instead!`);
                 }
-            	List.push(this.Token.Value);
+                let v = this.Token.Value;
+                if(AllowDefault){
+                	if(this.CheckNext("TK_EQ","Operator")){
+                    	this.Next(2);
+                        v=[v,this.ParseExpression(-1)];
+                    }
+                }
+            	List.push(v);
                 if(this.CheckNext("TK_COMMA","Operator")){
                 	this.Next(2);
                     continue;
-                }
+                }	
                 break;
             }while(true);
+            if(SkipEnds){
+            	if(this.CheckNext("TK_LINEEND","Operator")){
+                	this.Next();
+                }
+            }
             return List;
         },
         ParseExpression:function(Priority=-1,CommaExpression=false){
@@ -694,13 +800,8 @@ const AST=Tokens=>{
                 Call:function(){
                 	let Node = this.NewNode("NewVariable");
                     this.Next(1);
-                    if(this.Token.Type!="Identifier"){
-                    	throw Error(`Expected Identifier for Variable Name, got ${this.Token.RawValue} instead!`);
-                    }
-                    Node.Write("Name",this.Token.Value);
-                    this.TestNext("TK_EQ","Operator");
-                    this.Next(2);
-                    Node.Write("Value",this.ParseFullExpression(-1));
+                    let Vars = this.IdentifierList(true,true);
+                    Node.Write("Variables",Vars);
                     return Node;
                 },
             },
@@ -718,7 +819,7 @@ const AST=Tokens=>{
                     this.TestNext("TK_POPEN","Bracket");
                     this.Next(2);
                     if(!IsToken(this.Token,"TK_PCLOSE","Bracket")){
-                    	Node.Write("Parameters",this.IdentifierList());
+                    	Node.Write("Parameters",this.IdentifierList(true));
                         this.TestNext("TK_PCLOSE","Bracket");
                     	this.Next();
                     }else{
@@ -772,6 +873,61 @@ const AST=Tokens=>{
                 	return Node;
                 },
             },
+            {
+            	Value:"TK_WHILE",
+                Type:"Operator",
+                Write:true,
+                Call:function(){
+                	let Node = this.NewNode("While");
+                    this.Next();
+                    Node.Write("Expression",this.ParseExpression(-1));
+                    Node.Write("Body",this.CodeBlock());
+                    return Node;
+                },
+            },
+            {
+            	Value:"TK_OR",
+                Type:"Operator",
+                Write:true,
+                Call:function(){
+                	let Node = this.NewNode("For");
+                    this.Next();
+                    Node.Write("Names",this.IdentifierList(true,true));
+                    this.Next();
+                    Node.Write("E1",this.ParseFullExpression(-1));
+                    this.Next();
+                    Node.Write("E2",this.ParseExpression(-1));
+                    Node.Write("Body",this.CodeBlock());
+                    return Node;
+                },
+            },
+            {
+            	Value:"TK_AND",
+                Type:"Operator",
+                Write:true,
+                Call:function(){
+                	let Node = this.NewNode("Delete");
+                    this.Next();
+                    Node.Write("Names",this.ExpressionList(-1));
+                    return Node;
+                },
+            },
+            {
+            	Value:"TK_EQ",
+                Type:"Operator",
+                Write:true,
+                Call:function(){
+                	let Node = this.NewNode("MakeClass");
+                    this.Next();
+                    if(this.Token.Type!="Identifier"){
+                    	throw Error("Expected variable name for class");
+                    }
+                    Node.Write("Name",this.Token.Value);
+                    this.Next();
+                    Node.Write("Object",this.ParseExpression(-1));
+                    return Node;
+                },
+            },
             /*
         	{
             	Value:"",
@@ -783,7 +939,7 @@ const AST=Tokens=>{
             },
             */
         ],
-        VarList:function(){
+        VarList:function(AllowDefault=false){
         	let List = [];
         	this.TestNext("TK_LT","Operator");
             this.Next(2);
@@ -791,7 +947,7 @@ const AST=Tokens=>{
             	this.Next();
             	return List;
             }
-            List = this.IdentifierList();
+            List = this.IdentifierList(AllowDefault);
             this.TestNext("TK_GT","Operator");
             this.Next(2);
             return List;
@@ -941,6 +1097,20 @@ class LState {
         	this.Variables.push(Var);
         }
     }
+    DeleteVariable(Name){
+    	if(this.IsVariable(Name)){
+        	for(let k in this.Variables){
+            	k=+k;
+                let v = this.Variables[k];
+                if(v.Name==Name){
+                	this.Variables.splice(k,1);
+                    break;
+                }
+            }
+        }else if(this.Parent){
+        	this.Parent.DeleteVariable(Name);
+        }
+    }
 }
 
 const Interpret=(Tokens,Environment)=>{
@@ -968,11 +1138,16 @@ const Interpret=(Tokens,Environment)=>{
                 }
             	return Value;
             },
-            "NewVariable":function(State,Token){
+            "UpdateVariable":function(State,Token){
             	let Name = Token.Read("Name");
-                let Value = this.Parse(State,Token.Read("Value"));
-                State.NewVariable(Name,Value);
-                return Value;
+                let Expression = this.Parse(State,Token.Read("Expression"));
+                State.SetVariable(Name,Expression);
+            },
+            "NewVariable":function(State,Token){
+            	let Variables = Token.Read("Variables");
+                for(let v of Variables){
+                	State.NewVariable(v[0],this.Parse(State,v[1]));
+                }
             },
         	"Add":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1012,17 +1187,14 @@ const Interpret=(Tokens,Environment)=>{
             "GetIndex":function(State,Token){
             	let Object = this.Parse(State,Token.Read("Object"));
                 let Index = this.Parse(State,Token.Read("Index"));
-                return Object[Index];
+                let Value = Object[Index];
+                if(typeof Value=="function")Value=Value.bind(Object);
+                return Value;
             },
             "Call":function(State,Token){
             	let Call = this.Parse(State,Token.Read("Call"));
                 let Arguments = this.ParseArray(State,Token.Read("Arguments"));
                 return Call(...Arguments);
-            },
-            "Eqs":function(State,Token){
-            	let V1 = this.Parse(State,Token.Read("V1"));
-                let V2 = this.Parse(State,Token.Read("V2"));
-                return V1==V2;
             },
             "Lt":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1155,6 +1327,81 @@ const Interpret=(Tokens,Environment)=>{
             	let V1 = this.Parse(State,Token.Read("V1"));
                 return V1.length;
             },
+            "GetType":function(State,Token){
+            	let V1 = this.Parse(State,Token.Read("Expression"));
+                return this.GetType(V1);
+            },
+            "While":function(State,Token){
+                let Expression = Token.Read("Expression");
+                let Body = Token.Read("Body");
+                while(this.Parse(State,Expression)){
+                    let ns = new LState(Body,State,{IsLoop:true,InLoop:true});
+                    this.ParseBlock(ns);
+                    if(ns.GetData("InLoop")==false)break;
+                }
+            },
+            "For":function(State,Token){
+                let E1 = Token.Read("E1");
+                let E2 = Token.Read("E2");
+                let Names = Token.Read("Names");
+                let Body = Token.Read("Body");
+                let es = new LState(State.Tokens,State);
+                for(let k in Names){
+                	let v = Names[k];
+                	es.NewVariable(v[0],v[1]);
+                }
+                while(this.Parse(es,E1)){
+                    let ns = new LState(Body,es,{IsLoop:true,InLoop:true});
+                    this.ParseBlock(ns);
+                    if(ns.GetData("InLoop")==false)break;
+                    this.Parse(es,E2);
+                }
+            },
+            "IsPrime":function(State,Token){
+            	let V1 = this.Parse(State,Token.Read("V1"));
+                for(let i=2;i<V1;i++)
+                	if(V1%i===0)return false;
+                return V1>1;
+            },
+            "Negative":function(State,Token){
+            	let V1 = this.Parse(State,Token.Read("V1"));
+                return -V1;
+            },
+            "Delete":function(State,Token){
+            	let Names = Token.Read("Names");
+                for(let v of Names){
+                	if(v instanceof ASTNode){
+                    	if(v.Type == "GetVariable"){
+                        	State.DeleteVariable(v.Read("Name"));
+                        }else if(v.Type=="GetIndex"){
+                        	let Obj = this.Parse(State,v.Read("Object"));
+                            let Ind = this.Parse(State,v.Read("Index"));
+                            delete Obj[Ind];
+                        }
+                    }
+                }
+            },
+            "NewClass":function(State,Token){
+            	let V1 = Token.Read("V1");
+                if(V1.Type=="Call"){
+                	let Call = this.Parse(State,V1.Read("Call"));
+                    let Arguments = this.ParseArray(State,V1.Read("Arguments"));
+                    return new Call(...Arguments);
+                }else{
+                	return new V1();
+                }
+            },
+            "MakeClass":function(State,Token){
+            	State.NewVariable(Token.Read("Name"),this.ClassState(State,Token));
+            },
+            "MakeFastClass":function(State,Token){
+            	return this.ClassState(State,Token);
+            },
+            "IsA":function(State,Token){
+            	let V1 = this.Parse(State,Token.Read("V1"));
+                let V2 = this.Parse(State,Token.Read("V2"));
+                return V1 instanceof V2;
+            },
         },
         ParseArray:function(State,Base){
         	let List = [];
@@ -1168,6 +1415,30 @@ const Interpret=(Tokens,Environment)=>{
             }
             return List;
         },
+        GetType:function(v){
+        	let t = typeof v;
+            if(t=="object"){
+            	if(!v){return "null"}
+            	if(v instanceof Array){
+                	return "array";
+                }
+            }
+            return t;
+        },
+        ClassState:function(State,Token){
+        	let self = this;
+            let Obj = this.Parse(State,Token.Read("Object"));
+            let Call = function(...a){
+            	let r = Obj.constructor(this,...a);
+                if(r===undefined){
+                	r=this;
+                }
+                return r;
+            };
+            Call.constructor=Obj.constructor;
+            Call.prototype=Obj;
+            return Call;
+        },
         FunctionState:function(State,Token){
         	let self = this;
             let Body = Token.Read("Body");
@@ -1179,8 +1450,10 @@ const Interpret=(Tokens,Environment)=>{
                 for (let k in Parameters){
                     let av = Arguments[k];
                     let pv = Parameters[k];
-                    if(!pv){break}
-               		NewState.NewVariable(pv,av);
+                    if(av===undefined){
+                    	av=self.Parse(State,pv[1]);
+                    }
+               		NewState.NewVariable(pv[0],av);
                	}
                 for (let v of PVars){
                 	State.TransferVariable(NewState,v);
@@ -1230,4 +1503,33 @@ const RunCode = function(Code="",Environment={}){
     Code=AST(Code);
     Code=Interpret(Code,Environment);
     return Code;
+}
+
+const output = document.getElementById("output");
+
+const _apply=(a,b)=>{
+	for(let k in b){
+    	let v = b[k];
+        if(typeof v =="object"){
+        	_apply(a[k],v);
+        }else{
+        	a[k]=v;
+        }
+    }
+}
+
+const make=(a,b,c)=>{
+	let e=document.createElement(a);
+    if(b){
+    	_apply(e,b);
+    }
+    c.appendChild(e);
+}
+
+const JoinArray=(a,p)=>{
+	let s = [];
+    for(let v of a){
+    	s.push(String(v));
+    }
+    return s.join(p)
 }
