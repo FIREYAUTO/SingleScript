@@ -1,6 +1,6 @@
 #H(t,u,c,o){
 	@x=+W."XMLHttpRequest";
-	x."onreadystatechange"=#()?x."readyState":x."DONE"c(x.response);
+	x."onreadystatechange"=#()?x."readyState":x."DONE"c(x."response");
 	x."open"(t,u);
 	x."send"(o);
 }
