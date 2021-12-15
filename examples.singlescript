@@ -69,3 +69,12 @@ l(f('3'));
 //Prime numbers between 0 and <Integer>
 
 ~<i>'10'?^il(i);
+
+//Version Formatting
+
+#v(){@R=W."RegExp",V=E.V."replace"(+R("SingleScript v"),"");<{n=V."match"(+R("\\d+\\.\\d+(?=\\.)"));d=V."match"(+R("\\d+\\-\\d+\\-\\d+"))}}
+
+@n=v();
+
+l(n.n); "Number";
+l(n.d); "Date";
