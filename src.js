@@ -811,7 +811,7 @@ const AST=Tokens=>{
                 Write:true,
                 Call:function(){
                 	let Node = this.NewNode("NewFunction");
-                    this.Next(1);
+                    this.Next();
                     if(this.Token.Type!="Identifier"){
                     	throw Error(`Expected Identifier for Variable Name, got ${this.Token.RawValue} instead!`);
                     }
@@ -1423,7 +1423,7 @@ const Interpret=(Tokens,Environment)=>{
                     let Arguments = this.ParseArray(State,V1.Read("Arguments"));
                     return new Call(...Arguments);
                 }else{
-                	return new V1();
+                	return new (this.Parse(State,V1))();
                 }
             },
             "MakeClass":function(State,Token){
@@ -1449,23 +1449,27 @@ const Interpret=(Tokens,Environment)=>{
                 if(!URL.match(/(^http(s)?\:\/{2})/)){
                 	URL="https://fireyauto.github.io/SingleScript/imports/"+URL+".singlescript";
                 }
-               	let imported=undefined,xml=new XMLHttpRequest(),self=this,vs=State.GetAllUpperVariables(),v={};
+               	let imported=undefined;
+                let xml = new XMLHttpRequest();
+                let v={};
+                let self = this;
+                let vs = State.GetAllUpperVariables();
                 for(let x of vs){
-                	v[x.Name]=x.Value;
+                    v[x.Name]=x.Value;
                 }
                 xml.onreadystatechange=function(){
                 	if(this.readyState==this.DONE){
                     	imported=RunCode(this.response,v).MainState.Exports;
                         let ns = new LState(Body,State);
-                        ns.NewVariable(Name,imported);
+                    	ns.NewVariable(Name,imported);
                         for(let k in v){
                         	ns.NewVariable(k,v[k]);
                         }
                         self.ParseBlock(ns);
                     }
                 }
-            	xml.open("GET",URL);
-      			xml.send();                
+                xml.open("GET",URL);
+      			xml.send();
             },
         },
         ParseArray:function(State,Base){
@@ -1563,9 +1567,15 @@ const Interpret=(Tokens,Environment)=>{
     return Stack;
 }
 
-const RunCode = function(Code="",Environment={}){
+const RunCode = function(Code="",Environment={},Settings={}){
 	Code=Tokenize(Code);
+    if(Settings.PrintTokens){
+    	document.write(Code);
+    }
     Code=AST(Code);
+    if(Settings.PrintAST){
+    	document.write(Code);
+    }
     Code=Interpret(Code,Environment);
     return Code;
 }
@@ -1611,7 +1621,7 @@ const Library = {
 	},
     D:document,
     W:window,
-    V:"SingleScript v0.001.12-15-21"
+    V:"SingleScript v0.002.12-15-21"
 }
 
 Library.E = Library;
