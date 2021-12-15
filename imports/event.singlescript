@@ -1,5 +1,5 @@
-@E=[];
-#e(c)!E."includes"(c)&E."push"(c);
-#f(){:<k,v>Ev()}
+@w=[];
+#e(c)w."push"(c);
+#f(){:<k,v>wv()}
 ."on"e;
 ."fire"f;
