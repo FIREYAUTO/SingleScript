@@ -1533,3 +1533,20 @@ const JoinArray=(a,p)=>{
     }
     return s.join(p)
 }
+
+const Library = {
+	l:function(...a){
+    	make("p",{
+        	innerHTML:JoinArray(a),
+            style:{
+            	marginTop:"0",
+                marginBottom:"0",
+            },
+        },output);
+	},
+    D:document,
+    W:window,
+    V:"SingleScript v0.001.12-15-21"
+}
+
+Library.E = Library;
