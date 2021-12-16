@@ -1,5 +1,5 @@
-@w=[];
-#e(c)w."push"(c);
-#f(){:<k,v>wv()}
-."on"e;
+@e=[];
+#o(c)e."push"(c);
+#f():<k,v>ev();
+."on"o;
 ."fire"f;
