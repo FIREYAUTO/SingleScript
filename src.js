@@ -31,8 +31,10 @@ const MainTokens = {
     "TK_WHILE":{v:"$",t:"Operator"},
     //{{ String Tokens }}\\
     "TK_QUOTE":{v:"\"",t:"String"},
-    //{{ String Tokens }}\\
+    //{{ N-String Tokens }}\\
     "TK_APOS":{v:"'",t:"Number"},
+    //{{ V-String Tokens }}\\
+    "TK_GRAVE":{v:"`",t:"Variable"},
     //{{ Control Tokens }}\\
     "TK_BACKSLASH":{v:"\\",t:"Control"},
     //{{ Bracket Tokens }}\\
@@ -106,6 +108,9 @@ const Tokenize = Code=>{
         }else if(IsType(t,"Number")){
         	let b = Between({s:s,Start:{Value:t.Value,Type:t.Type},End:{Value:t.Value,Type:t.Type},Escape:{Value:"TK_BACKSLASH",Type:"Control"},Tokens:Tokens});
             t.Type="Constant",t.Value=+b.map(x=>x.RawValue).join(""),t.RawValue="Number";
+       	}else if(IsType(t,"Variable")){
+        	let b = Between({s:s,Start:{Value:t.Value,Type:t.Type},End:{Value:t.Value,Type:t.Type},Escape:{Value:"TK_BACKSLASH",Type:"Control"},Tokens:Tokens});
+            t.Type="Identifier",t.Value=b.map(x=>x.RawValue).join(""),t.RawValue=t.Value;
         }else if(IsType(t,"Whitespace")){
         	s.i++;
             continue;
@@ -439,6 +444,9 @@ const AST=Tokens=>{
             }
             let Priority = Expression.Priority;
             let Next = this.Tokens[Stack.Position+1];
+            if(IsToken(this.Token,"TK_LINEEND","Operator")){
+            	return Expression.Value;
+            }
             if(!Next){return Expression.Value}
             for(let v of this.ComplexExpressionStates){
             	if(!IsToken(Next,v.Value,v.Type)){continue}
@@ -548,7 +556,7 @@ const AST=Tokens=>{
                     this.TestNext("TK_POPEN","Bracket");
                     this.Next(2);
                     if(!IsToken(this.Token,"TK_PCLOSE","Bracket")){
-                    	Node.Write("Parameters",this.IdentifierList(true));
+                    	Node.Write("Parameters",this.IdentifierList(true,false,true));
                         this.TestNext("TK_PCLOSE","Bracket");
                     	this.Next();
                     }else{
@@ -668,9 +676,16 @@ const AST=Tokens=>{
             }while(true);
             return List;
         },
-        IdentifierList:function(AllowDefault=false,SkipEnds=false){
+        IdentifierList:function(AllowDefault=false,SkipEnds=false,AllowVarargs=false){
         	let List = [];
             do{
+            	let va = false;
+                if(AllowVarargs){
+                	if(IsToken(this.Token,"TK_MUL","Operator")){
+                    	va=true;
+                        this.Next();
+                    }
+                }
             	if(this.Token.Type!="Identifier"){
                 	throw Error(`Expected Identifier for function parameter, got ${this.Token.RawValue} instead!`);
                 }
@@ -679,6 +694,13 @@ const AST=Tokens=>{
                 	if(this.CheckNext("TK_EQ","Operator")){
                     	this.Next(2);
                         v=[v,this.ParseExpression(-1)];
+                    }
+                }
+                if(va){
+                	if(v instanceof Array){
+                    	v[2]=true;
+                    }else{
+                    	v=[v,undefined,true];
                     }
                 }
             	List.push(v);
@@ -819,7 +841,7 @@ const AST=Tokens=>{
                     this.TestNext("TK_POPEN","Bracket");
                     this.Next(2);
                     if(!IsToken(this.Token,"TK_PCLOSE","Bracket")){
-                    	Node.Write("Parameters",this.IdentifierList(true));
+                    	Node.Write("Parameters",this.IdentifierList(true,false,true));
                         this.TestNext("TK_PCLOSE","Bracket");
                     	this.Next();
                     }else{
@@ -1177,6 +1199,7 @@ const Interpret=(Tokens,Environment)=>{
             	let Name = Token.Read("Name");
                 let Expression = this.Parse(State,Token.Read("Expression"));
                 State.SetVariable(Name,Expression);
+                return Expression;
             },
             "NewVariable":function(State,Token){
             	let Variables = Token.Read("Variables");
@@ -1516,13 +1539,30 @@ const Interpret=(Tokens,Environment)=>{
             let Callback = function(...Arguments){
           		let NewState = new LState(Body,State,{IsFunction:true});
             	NewState.IsFunction=true;
+                let Stop = false;
                 for (let k in Parameters){
                     let av = Arguments[k];
                     let pv = Parameters[k];
-                    if(av===undefined){
-                    	av=self.Parse(State,pv[1]);
+                    if(pv instanceof Array){
+                    	if(pv[2]===true){
+                        	let K=+k;
+                            let nv = [];
+                            for(let i=K;i<Arguments.length;i++){
+                            	nv.push(self.Parse(State,Arguments[i]));
+                            }
+                            av=nv;
+                            if(av.length==0){
+                            	av=undefined;
+                            }
+                            Stop=true;
+                        }
+                    	if(av===undefined){
+                    		av=self.Parse(State,pv[1]);
+                    	}
+                        pv=pv[0];
                     }
-               		NewState.NewVariable(pv[0],av);
+               		NewState.NewVariable(pv,av);
+                    if(Stop)break;
                	}
                 for (let v of PVars){
                 	State.TransferVariable(NewState,v);
