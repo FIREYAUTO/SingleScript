@@ -1,5 +1,6 @@
 .`loadDeps`#(n,c){
-	@L=?n,1='0',`deps`={};
+	@L='0',1='0',`deps`={};
+	:<k,v>n{%L+'1'}
 	#`depCheck`()?1:Lc();
 	#`load`(n,v){`deps`[n]=v;%1+'1';`depCheck`()}
 	:<k,v>n{*_v`load`(k,_)}
