@@ -1377,7 +1377,6 @@ class LState {
             	for(let k in Extra){
                 	Var[k]=Extra[k];
                 }
-                console.log(Var);
             }
         	this.Variables.push(Var);
         }
@@ -1422,7 +1421,6 @@ const Interpret=(Tokens,Environment)=>{
                     	Name = Name.Read("Name");
                         let Var = State.GetAllRawVariable(Name);
                         if(Var&&Var.Type){
-                            console.log(Var.Type);
                         	this.TypeCheck(State,Value,Var.Type);
                         }
                      	State.SetVariable(Name,Value);
@@ -1447,7 +1445,9 @@ const Interpret=(Tokens,Environment)=>{
             "NewVariable":function(State,Token){
             	let Variables = Token.Read("Variables");
                 for(let v of Variables){
-                	State.NewVariable(v[0],this.Parse(State,v[1]),{
+                    let Value = this.Parse(State,v[1])
+                    this.TypeCheck(State,Value,v[3])
+                	State.NewVariable(v[0],Value,{
                     	Type:v[3],
                     });
                 }
