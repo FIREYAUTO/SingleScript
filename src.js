@@ -1377,6 +1377,7 @@ class LState {
             	for(let k in Extra){
                 	Var[k]=Extra[k];
                 }
+                console.log(Var);
             }
         	this.Variables.push(Var);
         }
