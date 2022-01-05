@@ -710,10 +710,6 @@ const AST=Tokens=>{
         	let List = [];
             do{
             	let va = false;
-                let ty
-                if (AllowType){
-                    ty = this.GetType();
-                }
                 if(AllowVarargs){
                 	if(IsToken(this.Token,"TK_MUL","Operator")){
                     	va=true;
@@ -724,6 +720,10 @@ const AST=Tokens=>{
                 	throw Error(`Expected Identifier for function parameter, got ${this.Token.RawValue} instead!`);
                 }
                 let v = this.Token.Value;
+                let ty
+                if (AllowType){
+                    ty = this.GetType();
+                }
                 if(AllowDefault){
                 	if(this.CheckNext("TK_EQ","Operator")){
                     	this.Next(2);
