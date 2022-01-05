@@ -738,7 +738,7 @@ const AST=Tokens=>{
                 	if(v instanceof Array){
                     	v[3]=t;
                     }else{
-                    	v=[v,undefined,false,t];
+                    	v=[v,undefined,undefined,t];
                     }
                 }
             	List.push(v);
