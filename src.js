@@ -710,6 +710,10 @@ const AST=Tokens=>{
         	let List = [];
             do{
             	let va = false;
+                let ty
+                if (AllowType){
+                    ty = this.GetType();
+                }
                 if(AllowVarargs){
                 	if(IsToken(this.Token,"TK_MUL","Operator")){
                     	va=true;
@@ -733,12 +737,11 @@ const AST=Tokens=>{
                     	v=[v,undefined,true];
                     }
                 }
-                if(AllowType){
-                	let t = this.GetType();
+                if(AllowType&&ty){
                 	if(v instanceof Array){
-                    	v[3]=t;
+                    	v[3]=ty;
                     }else{
-                    	v=[v,undefined,undefined,t];
+                    	v=[v,undefined,undefined,ty];
                     }
                 }
             	List.push(v);
