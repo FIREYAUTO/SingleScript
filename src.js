@@ -29,6 +29,7 @@ const MainTokens = {
     "TK_FUNC":{v:"#",t:"Operator"},
     "TK_LOOP":{v:"~",t:"Operator"},
     "TK_WHILE":{v:"$",t:"Operator"},
+    "TK_EQRA":{v:"⇒",t:"Operator"},
     //{{ String Tokens }}\\
     "TK_QUOTE":{v:"\"",t:"String"},
     //{{ N-String Tokens }}\\
@@ -556,12 +557,13 @@ const AST=Tokens=>{
                     this.TestNext("TK_POPEN","Bracket");
                     this.Next(2);
                     if(!IsToken(this.Token,"TK_PCLOSE","Bracket")){
-                    	Node.Write("Parameters",this.IdentifierList(true,false,true));
+                    	Node.Write("Parameters",this.IdentifierList(true,false,true,true));
                         this.TestNext("TK_PCLOSE","Bracket");
                     	this.Next();
                     }else{
                     	Node.Write("Parameters",[]);
                     }
+                    Node.Write("ReturnType",this.GetType());
                     Node.Write("Body",this.CodeBlock());
                     return [Node,Priority];
                 },
@@ -600,6 +602,17 @@ const AST=Tokens=>{
                 Stop:false,
                 Call:function(Priority){
                 	let Node = this.NewNode("IsPrime");
+                    this.Next();
+                    Node.Write("V1",this.ParseExpression(400));
+                    return [Node,Priority];
+                },
+            },
+            {
+            	Type:"Operator",
+                Value:"TK_MUL",
+                Stop:false,
+                Call:function(Priority){
+                	let Node = this.NewNode("UnpackArray");
                     this.Next();
                     Node.Write("V1",this.ParseExpression(400));
                     return [Node,Priority];
@@ -664,6 +677,23 @@ const AST=Tokens=>{
             },
             */
         ],
+        GetType:function(Priority=-1){
+        	if(!this.CheckNext("TK_EQRA","Operator"))return;
+            this.Next(2);
+            return this.ParseTypeExpression(Priority);
+        },
+        TypeExpressionList:function(Priority=-1){
+        	let List=[];
+            do{
+            	List.push(this.ParseTypeExpression(Priority));
+                if(this.CheckNext("TK_COMMA","Operator")){
+                	this.Next(2);
+                    continue;
+                }
+                break;
+            }while(true);
+            return List;
+        },
         ExpressionList:function(Priority=-1){
         	let List = [];
             do{
@@ -676,7 +706,7 @@ const AST=Tokens=>{
             }while(true);
             return List;
         },
-        IdentifierList:function(AllowDefault=false,SkipEnds=false,AllowVarargs=false){
+        IdentifierList:function(AllowDefault=false,SkipEnds=false,AllowVarargs=false,AllowType=false){
         	let List = [];
             do{
             	let va = false;
@@ -701,6 +731,14 @@ const AST=Tokens=>{
                     	v[2]=true;
                     }else{
                     	v=[v,undefined,true];
+                    }
+                }
+                if(AllowType){
+                	let t = this.GetType();
+                	if(v instanceof Array){
+                    	v[3]=t;
+                    }else{
+                    	v=[v,undefined,false,t];
                     }
                 }
             	List.push(v);
@@ -786,6 +824,165 @@ const AST=Tokens=>{
             this.Chunk=this.OpenChunks.pop();
             return Block;
         },
+        ComplexTypeExpressionStates:[
+        	{
+            	Type:"Operator",
+                Value:"TK_OR",
+                Priority:150,
+                Call:function(Value,Priority){
+                	let Node = this.NewNode("TypeOr");
+                    Node.Write("V1",Value);
+                    this.Next(2);
+                    Node.Write("V2",this.ParseTypeExpression(Priority));
+                    return this.NewExpression(Node,Priority);
+                },
+            },
+            {
+            	Type:"Operator",
+                Value:"TK_AND",
+                Priority:150,
+                Call:function(Value,Priority){
+                	let Node = this.NewNode("TypeUnion");
+                    Node.Write("V1",Value);
+                    this.Next(2);
+                    Node.Write("V2",this.ParseTypeExpression(Priority));
+                    return this.NewExpression(Node,Priority);
+                },
+            },
+        	/*
+            {
+            	Type:"",
+                Value:"",
+                Priority:0,
+                Call:function(Value,Priority){
+                	
+                },
+            },
+            */
+        ],
+        ParseComplexTypeExpression:function(Expression){
+        	if(!(Expression instanceof ASTExpression)){
+            	return Expression;
+            }
+            let Priority = Expression.Priority;
+            let Next = this.Tokens[Stack.Position+1];
+            if(IsToken(this.Token,"TK_LINEEND","Operator")){
+            	return Expression.Value;
+            }
+            if(!Next){return Expression.Value}
+            for(let v of this.ComplexTypeExpressionStates){
+            	if(!IsToken(Next,v.Value,v.Type)){continue}
+                if(Expression.Priority<=v.Priority){
+                	Expression = v.Call.bind(this)(Expression.Value,v.Priority);
+                    Expression.Priority = Priority;
+                    let Result = this.ParseComplexTypeExpression(Expression);
+                    Expression = this.NewExpression(Result,Expression.Priority);
+                }
+                break;
+            }
+            return Expression.Value;
+        },
+        TypeExpressionStates:[
+        	{
+                Type:"Identifier",
+                Stop:false,
+                Call:function(Priority){
+                	let Node = this.NewNode("GetType");
+                    Node.Write("Name",this.Token.RawValue);
+                    return [Node,Priority];
+                },
+            },
+            {
+            	Value:"TK_NOT",
+                Type:"Operator",
+                Stop:false,
+                Call:function(Priority){
+                	let Node = this.NewNode("TypeNot");
+                    this.Next();
+                    Node.Write("V1",this.ParseTypeExpression(200));
+                    return [Node,Priority];
+                },
+            },
+            {
+            	Value:"TK_IF",
+                Type:"Operator",
+                Stop:false,
+                Call:function(Priority){
+                	let Node = this.NewNode("TypeNull");
+                    this.Next();
+                    Node.Write("V1",this.ParseTypeExpression(200));
+                    return [Node,Priority];
+                },
+            },
+        	{
+            	Value:"TK_POPEN",
+                Type:"Bracket",
+                Stop:false,
+                Call:function(Priority){
+                	this.Next();
+                    let Result = this.ParseTypeExpression()
+                    this.TestNext("TK_PCLOSE","Bracket");
+                    this.Next();
+                	return [Result,Priority];
+                },
+            },
+            {
+            	Value:"TK_IOPEN",
+                Type:"Bracket",
+                Stop:false,
+                Call:function(Priority){
+                    let Node = this.NewNode("TypeArray");
+                    if(!this.CheckNext("TK_ICLOSE","Bracket")){
+                    	this.Next();
+                    	let Result = this.ParseTypeExpression();
+                    	this.TestNext("TK_ICLOSE","Bracket");
+                        Node.Write("List",Result);
+                    }
+                    this.Next();
+                	return [Node,Priority];
+                },
+            },
+        	/*
+            {
+            	Value:"",
+                Type:"",
+                Stop:false,
+                Call:function(Priority){
+                	
+                },
+            },
+            */
+        ],
+        ParseTypeExpression:function(Priority=-1){
+        	let Token = this.Token;
+            if(!Token){return null}
+            let Result = null;
+            for(let v of this.TypeExpressionStates){
+            	let d = false;
+            	if (!v.Value&&v.Type){
+                	if(Token.Type==v.Type){
+                    	let [r,p]=v.Call.bind(this)(Priority);
+                    	Priority=p;
+                    	Result=r;
+                        d=true;
+                    }
+                }else{
+                	if(IsToken(Token,v.Value,v.Type)){
+                		let [r,p]=v.Call.bind(this)(Priority);
+                    	Priority=p;
+                    	Result=r;
+                        d=true;
+                	}
+                }
+                if(d){
+                	if(v.Stop){
+                    	return Result;
+                    }
+                    break;
+                }
+            }
+            return this.ParseComplexTypeExpression(this.NewExpression(Result,Priority));
+        },
         States:[
         	{
             	Value:"TK_IF",
@@ -822,7 +1019,7 @@ const AST=Tokens=>{
                 Call:function(){
                 	let Node = this.NewNode("NewVariable");
                     this.Next(1);
-                    let Vars = this.IdentifierList(true,true);
+                    let Vars = this.IdentifierList(true,true,false,true);
                     Node.Write("Variables",Vars);
                     return Node;
                 },
@@ -841,12 +1038,13 @@ const AST=Tokens=>{
                     this.TestNext("TK_POPEN","Bracket");
                     this.Next(2);
                     if(!IsToken(this.Token,"TK_PCLOSE","Bracket")){
-                    	Node.Write("Parameters",this.IdentifierList(true,false,true));
+                    	Node.Write("Parameters",this.IdentifierList(true,false,true,true));
                         this.TestNext("TK_PCLOSE","Bracket");
                     	this.Next();
                     }else{
                     	Node.Write("Parameters",[]);
                     }
+                    Node.Write("ReturnType",this.GetType());
                     Node.Write("Body",this.CodeBlock());
                     return Node;
                 },
@@ -1060,6 +1258,20 @@ class LState {
             this.Exports=Parent.Exports;
         }
         this.Variables=[];
+        this.TypeVars={};
+    }
+    IsType(Name){
+    	return this.TypeVars.hasOwnProperty(Name);
+    }
+    NewType(Name,Value){
+    	this.TypeVars[Name]=Value;
+    }
+    GetType(Name){
+    	if(this.IsType(Name)){
+        	return this.TypeVars[Name];
+        }else if(this.Parent){
+        	return this.Parent.GetType(Name);
+        }
     }
     TransferVariable(New,Var){
     	if(!New.IsVariable(Var.Name)){
@@ -1128,6 +1340,13 @@ class LState {
             }
         }
     }
+    GetAllRawVariable(Name){
+    	let v = this.GetRawVariable(Name);
+        if(!v&&this.Parent){
+        	v=this.Parent.GetAllRawVariable(Name);
+        }
+        return v;
+    }
     IsVariable(Name){
     	return !!this.GetRawVariable(Name);
     }
@@ -1148,9 +1367,14 @@ class LState {
         	this.NewVariable(Name,Value);
         }
     }
-    NewVariable(Name,Value){
+    NewVariable(Name,Value,Extra={}){
     	if(!this.IsVariable(Name)){
         	let Var = this.VariablePrototype(Name,Value);
+            if(Extra){
+            	for(let k in Extra){
+                	Var[k]=Extra[k];
+                }
+            }
         	this.Variables.push(Var);
         }
     }
@@ -1170,6 +1394,12 @@ class LState {
     }
 }
 
+class UnpackState {
+	constructor(List){
+    	this.List=List;
+    }
+}
+
 const Interpret=(Tokens,Environment)=>{
 	const Stack = {
     	Tokens:Tokens,
@@ -1186,6 +1416,10 @@ const Interpret=(Tokens,Environment)=>{
                 if(Name instanceof ASTNode){
                 	if(Name.Type=="GetVariable"){
                     	Name = Name.Read("Name");
+                        let Var = State.GetAllRawVariable(Name);
+                        if(Var&&Var.Type){
+                        	this.TypeCheck(State,Value,Var.Type);
+                        }
                      	State.SetVariable(Name,Value);
                     }else if(Name.Type=="GetIndex"){
                     	let Obj = this.Parse(State,Name.Read("Object"));
@@ -1198,13 +1432,19 @@ const Interpret=(Tokens,Environment)=>{
             "UpdateVariable":function(State,Token){
             	let Name = Token.Read("Name");
                 let Expression = this.Parse(State,Token.Read("Expression"));
+                let Var = State.GetAllRawVariable(Name);
+                if(Var&&Var.Type){
+                	this.TypeCheck(State,Expression,Var.Type);
+                }
                 State.SetVariable(Name,Expression);
                 return Expression;
             },
             "NewVariable":function(State,Token){
             	let Variables = Token.Read("Variables");
                 for(let v of Variables){
-                	State.NewVariable(v[0],this.Parse(State,v[1]));
+                	State.NewVariable(v[0],this.Parse(State,v[1]),{
+                    	Type:v[3],
+                    });
                 }
             },
         	"Add":function(State,Token){
@@ -1342,9 +1582,19 @@ const Interpret=(Tokens,Environment)=>{
             "NewArray":function(State,Token){
                 let Result = [];
                 let Arr = Token.Read("Array");
+                let off=0;
                 for(let k in Arr){
                 	let v = Arr[k];
-                	Result[+k]=this.Parse(State,v);
+                    let r = this.Parse(State,v,true);
+                    if (r instanceof UnpackState){
+                    	for(let xk in r.List){
+                        	xk=+xk;
+                        	let xv = r.List[xk];
+                            Result[(+k)+xk]=xv;
+                            off++;
+                        }
+                    }
+                	Result[(+k)+off]=r
                 }
                 return Result;
             },
@@ -1499,10 +1749,18 @@ const Interpret=(Tokens,Environment)=>{
         	let List = [];
             for (let k in Base){
             	let v = Base[k];
+                let r;
                 if(typeof v=="object"&&!(v instanceof ASTBase)){
-                	List.push(this.ParseArray(State,v));
+                	r=this.ParseArray(State,v)
                 }else{
-                	List.push(this.Parse(State,v));
+                	r=this.Parse(State,v,true);
+                }
+                if(r instanceof UnpackState){
+                	for(let x of r.List){
+                    	List.push(x);
+                    }
+                }else{
+                	List.push(r);
                 }
             }
             return List;
@@ -1510,12 +1768,86 @@ const Interpret=(Tokens,Environment)=>{
         GetType:function(v){
         	let t = typeof v;
             if(t=="object"){
-            	if(!v){return "null"}
-            	if(v instanceof Array){
-                	return "array";
-                }
+            	if(!v)return"null";
+            	if(v instanceof Array)return "array";
             }
             return t;
+        },
+        ParseType:function(State,Type){
+        	if(!(Type instanceof ASTBase)){return Type}
+        	let T = Type.Type;
+            if (T=="GetType"){
+            	return this.ParseType(State,State.GetType(Type.Read("Name")));
+            }else if(T=="TypeOr"){
+            	return {
+                	Type:"Union",
+                    V1:this.ParseType(State,Type.Read("V1")),
+                    V2:this.ParseType(State,Type.Read("V2")),
+                    toString:function(){
+                    	return `${String(this.V1)}|${String(this.V2)}`
+                    }
+                };
+            }else if(T=="TypeUnion"){
+            	return {
+                	Type:"Concat",
+                    V1:this.ParseType(State,Type.Read("V1")),
+                    V2:this.ParseType(State,Type.Read("V2")),
+                    toString:function(){
+                    	return `${String(this.V1)}&${String(this.V2)}`
+                    }
+                };
+            }else if(T=="TypeNull"){
+            	return {
+                	Type:"Null",
+                    V:this.ParseType(State,Type.Read("V1")),
+                    toString:function(){
+                    	return `?${String(this.V)}`
+                    }
+                };
+            }else if(T=="TypeNot"){
+            	return {
+                	Type:"Not",
+                    V:this.ParseType(State,Type.Read("V1")),
+                    toString:function(){
+                    	return `!${String(this.V)}`
+                    }
+                };
+            }else if(T=="TypeArray"){
+                return {
+                	Type:"Array",
+                    V:this.ParseType(State,Type.Read("List")),
+                    toString:function(){
+                    	return `[${String(this.V)}]`;
+                    }
+                };
+            }
+            return Type;
+        },
+        TypeCheck:function(State,Value,Type){
+            Type=this.ParseType(State,Type);
+            let self = this;
+            let Check=function(a,b){
+            	if(a===undefined)a=null;
+            	let ta=self.GetType(a);
+                if (b.Type == "Union"){
+                	return Check(a,b.V1)||Check(a,b.V2);
+                }else if(b.Type=="Concat"){
+                	return Check(a,b.V1)&&Check(a,b.V2);
+                }else if(b.Type=="Array"){
+                	return Check(a,"array")&&(!a.find((v, k)=>!Check(v, b.V)))
+                }else if(b.Type=="Null"){
+                	return Check(a,"null")||Check(a,b.V);
+                }else if(b.Type=="Not"){
+                	return !Check(a,b.V);
+                }else{
+                	if(b=="A")return true;
+                	return b==ta;
+                }
+            }
+            let Done = Check(Value,Type);
+            if(!Done){
+            	throw Error(`${Value} does not match type ${Type}`);
+            }
         },
         ClassState:function(State,Token){
         	let self = this;
@@ -1559,6 +1891,9 @@ const Interpret=(Tokens,Environment)=>{
                     	if(av===undefined){
                     		av=self.Parse(State,pv[1]);
                     	}
+                        if(pv[3]){
+                        	self.TypeCheck(State,av,pv[3]);
+                        }
                         pv=pv[0];
                     }
                		NewState.NewVariable(pv,av);
@@ -1572,7 +1907,7 @@ const Interpret=(Tokens,Environment)=>{
           	}
             return Callback;
         },
-        Parse:function(State,Token){
+        Parse:function(State,Token,Unpack=false){
         	if(!(Token instanceof ASTBase)){
             	return Token;
             }
@@ -1580,13 +1915,19 @@ const Interpret=(Tokens,Environment)=>{
             	let v = this.ParseStates[k];
                 if(Token.Type==k){
                 	return v.bind(this)(State,Token);
+                }else if(Token.Type=="UnpackArray"){
+                	if(Unpack===true){
+                		return new UnpackState(this.Parse(State,Token.Read("V1"),true));	 
+                	}else{
+                    	throw Error("Cannot unpack array in this statement!");
+                    }
                 }
             }
             return Token;
         },
-        ParseBlock:function(State){
+        ParseBlock:function(State,Unpack=false){
         	while(!State.IsEnd()){
-            	this.Parse(State,State.Token);
+            	this.Parse(State,State.Token,Unpack);
                 State.Next();
                	if(State.GetData("Returned")==true){
                 	State.CodeData("InLoop",false);
@@ -1602,6 +1943,10 @@ const Interpret=(Tokens,Environment)=>{
     }
     for (let k in Environment){
     	Stack.MainState.NewVariable(k,Environment[k]);
+    }
+    let Types={"a":"array","s":"string","n":"number","b":"boolean","o":"object","N":"null","A":"any"};
+    for(let k in Types){
+    	Stack.MainState.NewType(k,Types[k]);
     }
     Stack.ParseBlock(Stack.MainState);
     return Stack;
@@ -1619,49 +1964,3 @@ const RunCode = function(Code="",Environment={},Settings={}){
     Code=Interpret(Code,Environment);
     return Code;
 }
-
-const output = document.getElementById("output");
-
-const _apply=(a,b)=>{
-	for(let k in b){
-    	let v = b[k];
-        if(typeof v =="object"){
-        	_apply(a[k],v);
-        }else{
-        	a[k]=v;
-        }
-    }
-}
-
-const make=(a,b,c)=>{
-	let e=document.createElement(a);
-    if(b){
-    	_apply(e,b);
-    }
-    c.appendChild(e);
-}
-
-const JoinArray=(a,p)=>{
-	let s = [];
-    for(let v of a){
-    	s.push(String(v));
-    }
-    return s.join(p)
-}
-
-const Library = {
-	l:function(...a){
-    	make("p",{
-        	innerHTML:JoinArray(a),
-            style:{
-            	marginTop:"0",
-                marginBottom:"0",
-            },
-        },output);
-	},
-    D:document,
-    W:window,
-    V:"SingleScript v0.002.12-15-21"
-}
-
-Library.E = Library;
