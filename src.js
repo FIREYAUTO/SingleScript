@@ -1421,6 +1421,7 @@ const Interpret=(Tokens,Environment)=>{
                     	Name = Name.Read("Name");
                         let Var = State.GetAllRawVariable(Name);
                         if(Var&&Var.Type){
+                            console.log(Var.Type);
                         	this.TypeCheck(State,Value,Var.Type);
                         }
                      	State.SetVariable(Name,Value);
