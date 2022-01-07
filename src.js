@@ -1446,7 +1446,9 @@ const Interpret=(Tokens,Environment)=>{
             	let Variables = Token.Read("Variables");
                 for(let v of Variables){
                     let Value = this.Parse(State,v[1])
-                    this.TypeCheck(State,Value,v[3])
+                    if(v[3]!=undefined){
+                        this.TypeCheck(State,Value,v[3])
+                    }
                 	State.NewVariable(v[0],Value,{
                     	Type:v[3],
                     });
