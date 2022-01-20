@@ -953,7 +953,7 @@ const AST=Tokens=>{
                 let Node = this.NewNode("TypeObject");
                 if(!this.CheckNext("TK_BCLOSE","Bracket")){
                   this.Next();
-                  if(this.IsToken(this.Token,"TK_IOPEN","Bracket")){
+                  if(IsToken(this.Token,"TK_IOPEN","Bracket")){
                     Node.Write("ObjectType","TypedKeys");
                     this.Next();
                     Node.Write("KeyType",this.ParseTypeExpression());
@@ -968,7 +968,7 @@ const AST=Tokens=>{
                     Node.Write("ObjectType","NamedKeys");
                     let TypeObject = {};
                     while(true){
-                      if(this.IsToken(this.Token,"TK_BCLOSE","Bracket"))break;
+                      if(IsToken(this.Token,"TK_BCLOSE","Bracket"))break;
                       if(this.Token.Type=="Identifier"||this.Token.Type=="Constant"){
                         let Key = this.Token.Value;
                         this.TestNext("TK_COLON","Operator");
