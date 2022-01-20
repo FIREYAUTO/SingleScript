@@ -533,10 +533,11 @@ const AST=Tokens=>{
                             	Ind=this.Token.Value;
                             }
                         }
+                        let Type = this.GetType();
                         this.TestNext("TK_EQ","Operator");
                         this.Next(2);
                         let Val = this.ParseFullExpression(-1);
-                        Obj.push([Ind,Val]);
+                        Obj.push([Ind,Val,Type]);
                         if(this.CheckNext("TK_COMMA","Operator")){
                         	this.Next();
                         }
@@ -1646,7 +1647,12 @@ const Interpret=(Tokens,Environment)=>{
                 let Result = {};
                 let Obj = Token.Read("Object");
                 for(let v of Obj){
-                	Result[this.Parse(State,v[0])]=this.Parse(State,v[1]);
+                  let t = v[2];
+                  let va = this.Parse(State,v[1]);
+                  if(t){
+                    this.TypeCheck(State,va,t);
+                  }
+                	Result[this.Parse(State,v[0])]=va;
                 }
                 return Result;
             },
