@@ -2033,7 +2033,7 @@ const Interpret=(Tokens,Environment)=>{
                 self.ParseBlock(NewState);
                 let Returns = NewState.GetData("Returns");
                 if(ReturnType){
-                  self.CheckType(State,Returns,ReturnType);
+                  self.TypeCheck(State,Returns,ReturnType);
                 }
                 return Returns;
           	}
