@@ -454,7 +454,7 @@ const AST=Tokens=>{
                 },
             },
             {
-            	Value:"TK_SRA",
+            	Value:"TK_SLA",
                 Type:"Operator",
                 Priority:2000,
                 Call:function(Value,Priority){
