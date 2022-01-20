@@ -407,7 +407,7 @@ const AST=Tokens=>{
             {
             	Value:"TK_OR",
                 Type:"Operator",
-                Priority:150,
+                Priority:151,
                 Call:function(Value,Priority){
                 	this.Next(2);
                 	let Result = this.NewNode("Or");
