@@ -32,6 +32,7 @@ const MainTokens = {
     "TK_EQRA":{v:"⇒",t:"Operator"},
     "TK_EQLA":{v:"⇐",t:"Operator"},
     "TK_DSRA":{v:"»",t:"Operator"},
+    "TK_SRA":{v:"›",t:"Operator"},
     //{{ String Tokens }}\\
     "TK_QUOTE":{v:"\"",t:"String"},
     //{{ N-String Tokens }}\\
@@ -436,6 +437,18 @@ const AST=Tokens=>{
                 	let Result = this.NewNode("ExpressionType");
                     Result.Write("V",Value);
                     Result.Write("T",this.ParseTypeExpression());
+                	return this.NewExpression(Result,Priority);
+                },
+            },
+            {
+            	Value:"TK_SRA",
+                Type:"Operator",
+                Priority:195,
+                Call:function(Value,Priority){
+                	this.Next(2);
+                	let Result = this.NewNode("ExpressionList");
+                    Result.Write("V1",Value);
+                    Result.Write("V2",this.ParseExpression(Priority));
                 	return this.NewExpression(Result,Priority);
                 },
             },
@@ -1844,6 +1857,11 @@ const Interpret=(Tokens,Environment)=>{
               let T = this.ParseType(State,Token.Read("T"));
               this.TypeCheck(State,V,T);
               return V;
+            },
+            "ExpressionList":function(State,Token){
+              this.Parse(State,Token.Read("V1"));
+              let V2 = this.Parse(State,Token.Read("V2"));
+              return V2;
             },
         },
         ParseArray:function(State,Base){
