@@ -945,6 +945,52 @@ const AST=Tokens=>{
                 	return [Node,Priority];
                 },
             },
+            {
+              Value:"TK_BOPEN",
+              Type:"Bracket",
+              Stop:false,
+              Call:function(Priority){
+                let Node = this.NewNode("TypeObject");
+                if(!this.CheckNext("TK_BCLOSE","Bracket")){
+                  this.Next();
+                  if(this.IsToken(this.Token,"TK_IOPEN","Bracket")){
+                    Node.Write("ObjectType","TypedKeys");
+                    this.Next();
+                    Node.Write("KeyType",this.ParseTypeExpression());
+                    this.TestNext("TK_ICLOSE","Bracket");
+                    this.Next();
+                    this.TestNext("TK_COLON","Operator");
+                    this.Next(2);
+                    Node.Write("ValueType",this.ParseTypeExpression());
+                    this.TestNext("TK_BCLOSE","Bracket");
+                    this.Next();
+                  }else if(this.Token.Type=="Identifier"||this.Token.Type=="Constant"){
+                    Node.Write("ObjectType","NamedKeys");
+                    let TypeObject = {};
+                    while(true){
+                      if(this.IsToken(this.Token,"TK_BCLOSE","Bracket"))break;
+                      if(this.Token.Type=="Identifier"||this.Token.Type=="Constant"){
+                        let Key = this.Token.Value;
+                        this.TestNext("TK_COLON","Operator");
+                        this.Next(2);
+                        let Value = this.ParseTypeExpression();
+                        TypedObject[Key]=Value;
+                      }else{
+                        throw Error("Invalid token type in object type statement; expected Identifier or Constant");
+                      }
+                      if(this.CheckNext("TK_COMMA","Operator")){
+                        this.Next(2);
+                        continue;
+                      }
+                      this.Next();
+                      break;
+                    }
+                    Node.Write("TypeObject",TypeObject);
+                  }
+                }
+                return [Node,Priority];
+              }
+            },
         	/*
             {
             	Value:"",
@@ -1827,6 +1873,36 @@ const Interpret=(Tokens,Environment)=>{
                     	return `[${String(this.V)}]`;
                     }
                 };
+            }else if(T=="TypeObject"){
+              let TY = Type.Read("ObjectType");
+              if(TY=="TypedKeys"){
+                return {
+                  Type:"TypedKeysObject",
+                  K:this.ParseType(State,Type.Read("KeyType")),
+                  V:this.ParseType(State,Type.Read("ValueType")),
+                  toString:function(){
+                    return `{[${String(this.K)}]:${String(this.V)}}`;
+                  }
+                };
+              }else if(TY=="NamedKeys"){
+                let O = Type.Read("TypeObject");
+                let N = {};
+                for(let k in O){
+                  N[k]=this.ParseType(State,O[k]);
+                }
+                return {
+                  Type:"NamedKeysObject",
+                  V:N,
+                  toString:function(){
+                    let R = [];
+                    for(let k in this.V){
+                      let v = this.V[k];
+                      R.push(`"${k}":${String(v)}`);
+                    }
+                    return `{${R.join(",")}}`;
+                  }
+                };
+              }
             }
             return Type;
         },
@@ -1846,6 +1922,27 @@ const Interpret=(Tokens,Environment)=>{
                 	return Check(a,"null")||Check(a,b.V);
                 }else if(b.Type=="Not"){
                 	return !Check(a,b.V);
+                }else if(b.Type=="TypedKeysObject"){
+                  let R = Check(a,"object");
+                  if(!R)return R;
+                  for(let k in a){
+                    let v = a[k];
+                    let c = Check(k,b.K)&&Check(v,b.V);
+                    if(!c)return c;
+                  }
+                  return true;
+                }else if(b.Type=="NamedKeysObject"){
+                  let R = Check(a,"object");
+                  if(!R)return R;
+                  let N = b.V;
+                  for(let k in N){
+                    let v = N[k];
+                    if(Object.prototype.hasOwnProperty.call(a,k)){
+                      let c = Check(a[k],v);
+                      if(!c)return c;
+                    }
+                  }
+                  return true;
                 }else{
                 	if(b=="A")return true;
                 	return b==ta;
