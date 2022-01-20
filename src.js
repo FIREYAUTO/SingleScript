@@ -30,6 +30,7 @@ const MainTokens = {
     "TK_LOOP":{v:"~",t:"Operator"},
     "TK_WHILE":{v:"$",t:"Operator"},
     "TK_EQRA":{v:"⇒",t:"Operator"},
+    "TK_EQLA":{v:"⇐",t:"Operator"},
     //{{ String Tokens }}\\
     "TK_QUOTE":{v:"\"",t:"String"},
     //{{ N-String Tokens }}\\
@@ -1230,6 +1231,23 @@ const AST=Tokens=>{
                     return Node;
                 },
             },
+            {
+            	Value:"TK_EQLA",
+                Type:"Operator",
+                Write:true,
+                Call:function(){
+                	let Node = this.NewNode("NewType");
+                    this.Next();
+                    if(this.Token.Type!="Identifier"){
+                    	throw Error("Expected variable name for type");
+                    }
+                    Node.Write("Name",this.Token.Value);
+                    this.TestNext("TK_EQ","Operator");
+                    this.Next(2);
+                    Node.Write("Type",this.ParseTypeExpression());
+                    return Node;
+                },
+            },
             /*
         	{
             	Value:"",
@@ -1796,6 +1814,11 @@ const Interpret=(Tokens,Environment)=>{
                 }
                 xml.open("GET",URL);
       			xml.send();
+            },
+            "NewType":function(State,Token){
+              let Name = Token.Read("Name");
+              let Type = this.ParseType(State,Token.Read("Type"));
+              State.NewType(Name,Type); 
             },
         },
         ParseArray:function(State,Base){
