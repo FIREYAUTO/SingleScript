@@ -459,7 +459,7 @@ const AST=Tokens=>{
                 Priority:2000,
                 Call:function(Value,Priority){
                 	this.Next();
-                	return this.NewExpression(Value,Priority);
+                	return this.NewExpression(Value,2000);
                 },
             },
         	/*
