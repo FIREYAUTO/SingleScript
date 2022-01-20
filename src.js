@@ -33,6 +33,7 @@ const MainTokens = {
     "TK_EQLA":{v:"⇐",t:"Operator"},
     "TK_DSRA":{v:"»",t:"Operator"},
     "TK_SRA":{v:"›",t:"Operator"},
+    "TK_SLA":{v:"‹",t:"Operator"},
     //{{ String Tokens }}\\
     "TK_QUOTE":{v:"\"",t:"String"},
     //{{ N-String Tokens }}\\
@@ -450,6 +451,15 @@ const AST=Tokens=>{
                     Result.Write("V1",Value);
                     Result.Write("V2",this.ParseExpression(Priority));
                 	return this.NewExpression(Result,Priority);
+                },
+            },
+            {
+            	Value:"TK_SRA",
+                Type:"Operator",
+                Priority:2000,
+                Call:function(Value,Priority){
+                	this.Next();
+                	return this.NewExpression(Value,Priority);
                 },
             },
         	/*
