@@ -1994,6 +1994,7 @@ const Interpret=(Tokens,Environment)=>{
         	let self = this;
             let Body = Token.Read("Body");
             let Parameters = Token.Read("Parameters");
+            let ReturnType = Token.Read("ReturnType");
             let PVars = State.GetAllUpperVariables();
             let Callback = function(...Arguments){
           		let NewState = new LState(Body,State,{IsFunction:true});
@@ -2030,7 +2031,11 @@ const Interpret=(Tokens,Environment)=>{
                 	State.TransferVariable(NewState,v);
                 }
                 self.ParseBlock(NewState);
-                return NewState.GetData("Returns");
+                let Returns = NewState.GetData("Returns");
+                if(ReturnType){
+                  self.CheckType(State,Returns,ReturnType);
+                }
+                return Returns;
           	}
             return Callback;
         },
