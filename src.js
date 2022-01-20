@@ -974,7 +974,7 @@ const AST=Tokens=>{
                         this.TestNext("TK_COLON","Operator");
                         this.Next(2);
                         let Value = this.ParseTypeExpression();
-                        TypedObject[Key]=Value;
+                        TypeObject[Key]=Value;
                       }else{
                         throw Error("Invalid token type in object type statement; expected Identifier or Constant");
                       }
