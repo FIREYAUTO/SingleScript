@@ -34,6 +34,7 @@ const MainTokens = {
     "TK_DSRA":{v:"»",t:"Operator"},
     "TK_SRA":{v:"›",t:"Operator"},
     "TK_SLA":{v:"‹",t:"Operator"},
+    "TK_SELFCALL":{v:"↦",t:"Operator"},
     //{{ String Tokens }}\\
     "TK_QUOTE":{v:"\"",t:"String"},
     //{{ N-String Tokens }}\\
@@ -334,6 +335,29 @@ const AST=Tokens=>{
                 	this.Next();
                 	let Result = this.NewNode("Call");
                     Result.Write("Call",Value);
+                    if(!this.CheckNext("TK_PCLOSE","Bracket")){
+                    	this.Next();
+                    	Result.Write("Arguments",this.ExpressionList(-1));	
+                    }else{
+                    	Result.Write("Arguments",[]);
+                    }
+                    this.TestNext("TK_PCLOSE","Bracket");
+                    this.Next();
+                	return this.NewExpression(Result,Priority);
+                },
+            },
+            {
+            	Value:"TK_SELFCALL",
+                Type:"Operator",
+                Priority:900,
+                Call:function(Value,Priority){
+                	this.Next(2);
+                	let Result = this.NewNode("SelfCall");
+                    Result.Write("Object",Value);
+                    if(this.Token.Type!="Identifier"&&this.Token.Type!="Constant"){
+                        throw Error("Expected index name for self-call!");
+                    }
+                    Result.Write("Index",this.Token.Value);
                     if(!this.CheckNext("TK_PCLOSE","Bracket")){
                     	this.Next();
                     	Result.Write("Arguments",this.ExpressionList(-1));	
@@ -1601,6 +1625,12 @@ const Interpret=(Tokens,Environment)=>{
             	let Call = this.Parse(State,Token.Read("Call"));
                 let Arguments = this.ParseArray(State,Token.Read("Arguments"));
                 return Call(...Arguments);
+            },
+            "SelfCall":function(State,Token){
+            	let Object = this.Parse(State,Token.Read("Object"));
+                let Index = Token.Read("Index");
+                let Arguments = this.ParseArray(State,Token.Read("Arguments"));
+                return Object[Index](Object,...Arguments);
             },
             "Lt":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
