@@ -1,0 +1,5 @@
+#`thread`(f,t='0',a=[])W.`setTimeout`(#()f(*a),t);
+
+.c#(f,*r)`thread`(f,U,r);
+.d#(t,f,*r)`thread`(f,t*'1e3',r);
+.l#(a,f,*r)~<>a`thread`(f,U,r);
