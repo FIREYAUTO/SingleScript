@@ -1539,91 +1539,77 @@ const Interpret=(Tokens,Environment)=>{
         MainState:new LState(Tokens),
         ParseStates:{
         	"GetVariable":function(State,Token){
-            	return State.GetVariable(Token.Read("Name"));
+            	return Token.Read("Name");
             },
             "SetVariable":function(State,Token){
             	let Name = Token.Read("Name");
                 let Value = this.Parse(State,Token.Read("Value"));
-                //State.SetVariable(Token.Read("Name"),Token.Read("Value"));
+                let Text = "";
                 if(Name instanceof ASTNode){
                 	if(Name.Type=="GetVariable"){
                     	Name = Name.Read("Name");
-                        let Var = State.GetAllRawVariable(Name);
-                        if(Var&&Var.Type){
-                        	this.TypeCheck(State,Value,Var.Type);
-                        }
-                     	State.SetVariable(Name,Value);
+                        Text = `${Name}=${Value}`;
                     }else if(Name.Type=="GetIndex"){
                     	let Obj = this.Parse(State,Name.Read("Object"));
                         let Ind = this.Parse(State,Name.Read("Index"));
-                        Obj[Ind]=Value;
+                        Text = `${Obj}[${Ind}]=${Value}`;
                     }
                 }
-            	return Value;
+            	return Text;
             },
             "UpdateVariable":function(State,Token){
             	let Name = Token.Read("Name");
                 let Expression = this.Parse(State,Token.Read("Expression"));
-                let Var = State.GetAllRawVariable(Name);
-                if(Var&&Var.Type){
-                	this.TypeCheck(State,Expression,Var.Type);
-                }
-                State.SetVariable(Name,Expression);
-                return Expression;
+                return `${Name}=${Expression}`;
             },
             "NewVariable":function(State,Token){
             	let Variables = Token.Read("Variables");
+            	let Texts = [];
                 for(let v of Variables){
-                    let Value = this.Parse(State,v[1])
-                    if(v[3]!=undefined){
-                        this.TypeCheck(State,Value,v[3])
-                    }
-                	State.NewVariable(v[0],Value,{
-                    	Type:v[3],
-                    });
+                    let Value = this.Parse(State,v[1]);
+                	Texts.push(`${v[0]}=${Value}`);
                 }
+                return "let "+Texts.join(",")+";"
             },
         	"Add":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return V1+V2;
+                return `(${V1}+${V2})`;
             },
             "Sub":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return V1-V2;
+                return `(${V1}-${V2})`;
             },
             "Mul":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return V1*V2;
+                return `(${V1}*${V2})`;
             },
             "Div":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return V1/V2;
+                return `(${V1}/${V2})`;
             },
             "Mod":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return V1%V2;
+                return `(${V1}%${V2})`;
             },
             "Pow":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return V1**V2;
+                return `(${V1}**${V2})`;
             },
             "Eqs":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return V1==V2;
+                return `(${V1}==${V2})`;
             },
             "GetIndex":function(State,Token){
             	let Object = this.Parse(State,Token.Read("Object"));
                 let Index = this.Parse(State,Token.Read("Index"));
-                let Value = Object[Index];
-                if(typeof Value=="function")Value=Value.bind(Object);
-                return Value;
+                return `${Object}[${Index}]`;
             },
             "Call":function(State,Token){
             	let Call = this.Parse(State,Token.Read("Call"));
@@ -1639,42 +1625,33 @@ const Interpret=(Tokens,Environment)=>{
             "Lt":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return V1<V2;
+                return `(${V1}<${V2})`;
             },
             "Gt":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return V1>V2;
+                return `(${V1}>${V2})`;
             },
             "Not":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
-                return !V1;
+                return `!${V1}`;
             },
             "And":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
-                if (V1){
-                	let V2 = this.Parse(State,Token.Read("V2"));
-                    return V1&&V2;
-                }
-                return false;
+            	let V2 = this.Parse(State,Token.Read("V2"));
+                return `(${V1}&&${V2})`;
             },
             "Or":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
-                if (V1){
-                	return V1;
-                }else{
-                	let V2 = this.Parse(State,Token.Read("V2"));
-                    if (V2){return V2}
-                    return V1||V2;
-                }
+            	let V2 = this.Parse(State,Token.Read("V2"));
+                return `(${V1}||${V2})`;
             },
             "Return":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
-                State.CodeData("Returned",true);
-                State.CodeData("Returns",V1);
+                return `return ${V1};`;
             },
             "Break":function(State,Token){
-                State.CodeData("Stopped",true);
+                return "break;";
             },
             "If":function(State,Token){
             	let Exp = this.Parse(State,Token.Read("Expression"));
@@ -1707,43 +1684,65 @@ const Interpret=(Tokens,Environment)=>{
             },
             "NewFunction":function(State,Token){
             	let Name = Token.Read("Name");
-                let Callback = this.FunctionState(State,Token);
-                State.NewVariable(Name,Callback);
+            	let Body = Token.Read("Body");
+            	let Parameters = Token.Read("Parameters");
+            	let Params = [];
+            	for(let v of Parameters){
+            		let n = "";
+            		if(v instanceof Array){
+            			if(v[2]===true){
+            				n=`...${v[0]}`;
+            			}else if(v[1]){
+            				n=`${v[0]}=${this.Parse(State,v[1])}`;
+            			}
+            		}else{
+            			n=v;
+            		}
+            		Params.push(n);
+            	}
+                this.Write(`function ${Name}(${Params.join(",")}){`);
+                this.ParseBlock(new LState(Body,State));
+                this.Write("}");
             },
             "NewFastFunction":function(State,Token){
-                return this.FunctionState(State,Token);
+            	let Body = Token.Read("Body");
+            	let Parameters = Token.Read("Parameters");
+            	let Params = [];
+            	for(let v of Parameters){
+            		let n = "";
+            		if(v instanceof Array){
+            			if(v[2]===true){
+            				n=`...${v[0]}`;
+            			}else if(v[1]){
+            				n=`${v[0]}=${this.Parse(State,v[1])}`;
+            			}
+            		}else{
+            			n=v;
+            		}
+            		Params.push(n);
+            	}
+                this.Write(`function(${Params.join(",")}){`);
+                this.ParseBlock(new LState(Body,State));
+                this.Write("}");
             },
             "NewObject":function(State,Token){
-                let Result = {};
+                let Result = [];
                 let Obj = Token.Read("Object");
                 for(let v of Obj){
-                  let t = v[2];
-                  let va = this.Parse(State,v[1]);
-                  if(t){
-                    this.TypeCheck(State,va,t);
-                  }
-                	Result[this.Parse(State,v[0])]=va;
+                	let va = this.Parse(State,v[1]);
+                	Result.push(`${this.Parse(State,v[0])}:${va}`);
                 }
-                return Result;
+                return `{${Result.join(",")}}`;
             },
             "NewArray":function(State,Token){
                 let Result = [];
                 let Arr = Token.Read("Array");
-                let off=0;
                 for(let k in Arr){
                 	let v = Arr[k];
-                    let r = this.Parse(State,v,true);
-                    if (r instanceof UnpackState){
-                    	for(let xk in r.List){
-                        	xk=+xk;
-                        	let xv = r.List[xk];
-                            Result[(+k)+xk]=xv;
-                            off++;
-                        }
-                    }
-                	Result[(+k)+off]=r
+                    let r = this.Parse(State,v);
+                	Result.push(r);
                 }
-                return Result;
+                return `[${Result.join(",")}]`;
             },
             "Each":function(State,Token){
                 let Iter = this.Parse(State,Token.Read("Iterable"));
@@ -1774,26 +1773,24 @@ const Interpret=(Tokens,Environment)=>{
             	let List = Token.Read("List");
                 let Result = [];
                 for(let k in List){
-                	Result[k]=this.Parse(State,List[k]);
+                	Result.push(this.Parse(State,List[k]));
                 }
-                return Result[Result.length-1];
+                return Result.join(",");
             },
             "Length":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
-                return V1.length;
+                return `${V1}.length`;
             },
             "GetType":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("Expression"));
                 return this.GetType(V1);
             },
             "While":function(State,Token){
-                let Expression = Token.Read("Expression");
+                let Expression = this.Parse(Token.Read("Expression"));
                 let Body = Token.Read("Body");
-                while(this.Parse(State,Expression)){
-                    let ns = new LState(Body,State,{IsLoop:true,InLoop:true});
-                    this.ParseBlock(ns);
-                    if(ns.GetData("InLoop")==false)break;
-                }
+                this.Write(`while(${Expression}){`);
+                this.ParseBlock(new LState(Body,State));
+                this.Write("}");
             },
             "For":function(State,Token){
                 let E1 = Token.Read("E1");
@@ -1820,18 +1817,16 @@ const Interpret=(Tokens,Environment)=>{
             },
             "Negative":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
-                return -V1;
+                return `(-${V1})`;
             },
             "Delete":function(State,Token){
             	let Names = Token.Read("Names");
                 for(let v of Names){
                 	if(v instanceof ASTNode){
-                    	if(v.Type == "GetVariable"){
-                        	State.DeleteVariable(v.Read("Name"));
-                        }else if(v.Type=="GetIndex"){
+                    	if(v.Type=="GetIndex"){
                         	let Obj = this.Parse(State,v.Read("Object"));
                             let Ind = this.Parse(State,v.Read("Index"));
-                            delete Obj[Ind];
+                            return `delete ${Obj}[${Ind}];`;
                         }
                     }
                 }
@@ -1855,57 +1850,16 @@ const Interpret=(Tokens,Environment)=>{
             "IsA":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return V1 instanceof V2;
-            },
-            "Export":function(State,Token){
-            	let Name = this.Parse(State,Token.Read("Name"));
-                let Value = this.Parse(State,Token.Read("Value"));
-               	State.Exports[Name]=Value;
-            },
-            "Import":function(State,Token){
-            	let URL = this.Parse(State,Token.Read("URL"));
-                let Name = Token.Read("Name");
-                let Body = Token.Read("Body");
-                if(!URL.match(/(^http(s)?\:\/{2})/)){
-                	URL="https://fireyauto.github.io/SingleScript/imports/"+URL+".singlescript";
-                }
-               	let imported=undefined;
-                let xml = new XMLHttpRequest();
-                let v={};
-                let self = this;
-                let vs = State.GetAllUpperVariables();
-                for(let x of vs){
-                    v[x.Name]=x.Value;
-                }
-                xml.onreadystatechange=function(){
-                	if(this.readyState==this.DONE){
-                    	imported=RunCode(this.response,v).MainState.Exports;
-                        let ns = new LState(Body,State);
-                    	ns.NewVariable(Name,imported);
-                        for(let k in v){
-                        	ns.NewVariable(k,v[k]);
-                        }
-                        self.ParseBlock(ns);
-                    }
-                }
-                xml.open("GET",URL);
-      			xml.send();
-            },
-            "NewType":function(State,Token){
-              let Name = Token.Read("Name");
-              let Type = this.ParseType(State,Token.Read("Type"));
-              State.NewType(Name,Type); 
-            },
-            "ExpressionType":function(State,Token){
-              let V = this.Parse(State,Token.Read("V"));
-              let T = this.ParseType(State,Token.Read("T"));
-              this.TypeCheck(State,V,T);
-              return V;
+                return `(${V1} instanceof ${V2})`;
             },
             "ExpressionList":function(State,Token){
-              this.Parse(State,Token.Read("V1"));
+              let V1 = this.Parse(State,Token.Read("V1"));
               let V2 = this.Parse(State,Token.Read("V2"));
-              return V2;
+              return `[${V1},${V2}][1]`;
+            },
+            "UnpackArray":function(State,Token){
+            	let V1 = this.Parse(State,Token.Read("V1"));
+            	return `...${V1}`;
             },
         },
         ParseArray:function(State,Base){
@@ -1918,15 +1872,9 @@ const Interpret=(Tokens,Environment)=>{
                 }else{
                 	r=this.Parse(State,v,true);
                 }
-                if(r instanceof UnpackState){
-                	for(let x of r.List){
-                    	List.push(x);
-                    }
-                }else{
-                	List.push(r);
-                }
+                List.push(r);
             }
-            return List;
+            return List.join(",");
         },
         GetType:function(v){
         	let t = typeof v;
@@ -1935,133 +1883,6 @@ const Interpret=(Tokens,Environment)=>{
             	if(v instanceof Array)return "array";
             }
             return t;
-        },
-        ParseType:function(State,Type){
-        	if(!(Type instanceof ASTBase)){return Type}
-        	let T = Type.Type;
-            if (T=="GetType"){
-            	return this.ParseType(State,State.GetType(Type.Read("Name")));
-            }else if(T=="TypeOr"){
-            	return {
-                	Type:"Union",
-                    V1:this.ParseType(State,Type.Read("V1")),
-                    V2:this.ParseType(State,Type.Read("V2")),
-                    toString:function(){
-                    	return `${String(this.V1)}|${String(this.V2)}`
-                    }
-                };
-            }else if(T=="TypeUnion"){
-            	return {
-                	Type:"Concat",
-                    V1:this.ParseType(State,Type.Read("V1")),
-                    V2:this.ParseType(State,Type.Read("V2")),
-                    toString:function(){
-                    	return `${String(this.V1)}&${String(this.V2)}`
-                    }
-                };
-            }else if(T=="TypeNull"){
-            	return {
-                	Type:"Null",
-                    V:this.ParseType(State,Type.Read("V1")),
-                    toString:function(){
-                    	return `?${String(this.V)}`
-                    }
-                };
-            }else if(T=="TypeNot"){
-            	return {
-                	Type:"Not",
-                    V:this.ParseType(State,Type.Read("V1")),
-                    toString:function(){
-                    	return `!${String(this.V)}`
-                    }
-                };
-            }else if(T=="TypeArray"){
-                return {
-                	Type:"Array",
-                    V:this.ParseType(State,Type.Read("List")),
-                    toString:function(){
-                    	return `[${String(this.V)}]`;
-                    }
-                };
-            }else if(T=="TypeObject"){
-              let TY = Type.Read("ObjectType");
-              if(TY=="TypedKeys"){
-                return {
-                  Type:"TypedKeysObject",
-                  K:this.ParseType(State,Type.Read("KeyType")),
-                  V:this.ParseType(State,Type.Read("ValueType")),
-                  toString:function(){
-                    return `{[${String(this.K)}]:${String(this.V)}}`;
-                  }
-                };
-              }else if(TY=="NamedKeys"){
-                let O = Type.Read("TypeObject");
-                let N = {};
-                for(let k in O){
-                  N[k]=this.ParseType(State,O[k]);
-                }
-                return {
-                  Type:"NamedKeysObject",
-                  V:N,
-                  toString:function(){
-                    let R = [];
-                    for(let k in this.V){
-                      let v = this.V[k];
-                      R.push(`"${k}":${String(v)}`);
-                    }
-                    return `{${R.join(",")}}`;
-                  }
-                };
-              }
-            }
-            return Type;
-        },
-        TypeCheck:function(State,Value,Type){
-            Type=this.ParseType(State,Type);
-            let self = this;
-            let Check=function(a,b){
-            	if(a===undefined)a=null;
-            	let ta=self.GetType(a);
-                if (b.Type == "Union"){
-                	return Check(a,b.V1)||Check(a,b.V2);
-                }else if(b.Type=="Concat"){
-                	return Check(a,b.V1)&&Check(a,b.V2);
-                }else if(b.Type=="Array"){
-                	return Check(a,"array")&&(!a.find((v, k)=>!Check(v, b.V)))
-                }else if(b.Type=="Null"){
-                	return Check(a,"null")||Check(a,b.V);
-                }else if(b.Type=="Not"){
-                	return !Check(a,b.V);
-                }else if(b.Type=="TypedKeysObject"){
-                  let R = Check(a,"object");
-                  if(!R)return R;
-                  for(let k in a){
-                    let v = a[k];
-                    let c = Check(k,b.K)&&Check(v,b.V);
-                    if(!c)return c;
-                  }
-                  return true;
-                }else if(b.Type=="NamedKeysObject"){
-                  let R = Check(a,"object");
-                  if(!R)return R;
-                  let N = b.V;
-                  for(let k in N){
-                    let v = N[k];
-                    if(Object.prototype.hasOwnProperty.call(a,k)){
-                      let c = Check(a[k],v);
-                      if(!c)return c;
-                    }
-                  }
-                  return true;
-                }else{
-                	if(b=="A")return true;
-                	return b==ta;
-                }
-            }
-            let Done = Check(Value,Type);
-            if(!Done){
-            	throw Error(`${Value} does not match type ${Type}`);
-            }
         },
         ClassState:function(State,Token){
         	let self = this;
@@ -2077,98 +1898,41 @@ const Interpret=(Tokens,Environment)=>{
             Call.prototype=Obj;
             return Call;
         },
-        FunctionState:function(State,Token){
-        	let self = this;
-            let Body = Token.Read("Body");
-            let Parameters = Token.Read("Parameters");
-            let ReturnType = Token.Read("ReturnType");
-            let PVars = State.GetAllUpperVariables();
-            let Callback = function(...Arguments){
-          		let NewState = new LState(Body,State,{IsFunction:true});
-            	NewState.IsFunction=true;
-                let Stop = false;
-                for (let k in Parameters){
-                    let av = Arguments[k];
-                    let pv = Parameters[k];
-                    if(pv instanceof Array){
-                    	if(pv[2]===true){
-                        	let K=+k;
-                            let nv = [];
-                            for(let i=K;i<Arguments.length;i++){
-                            	nv.push(self.Parse(State,Arguments[i]));
-                            }
-                            av=nv;
-                            if(av.length==0){
-                            	av=undefined;
-                            }
-                            Stop=true;
-                        }
-                    	if(av===undefined){
-                    		av=self.Parse(State,pv[1]);
-                    	}
-                        if(pv[3]){
-                        	self.TypeCheck(State,av,pv[3]);
-                        }
-                        pv=pv[0];
-                    }
-               		NewState.NewVariable(pv,av);
-                    if(Stop)break;
-               	}
-                for (let v of PVars){
-                	State.TransferVariable(NewState,v);
-                }
-                self.ParseBlock(NewState);
-                let Returns = NewState.GetData("Returns");
-                if(ReturnType){
-                  self.TypeCheck(State,Returns,ReturnType);
-                }
-                return Returns;
-          	}
-            return Callback;
-        },
         Parse:function(State,Token,Unpack=false){
         	if(!(Token instanceof ASTBase)){
+        		if(typeof Token=="string"){
+        			return `"${Token}"`;
+        		}
             	return Token;
             }
             for(let k in this.ParseStates){
             	let v = this.ParseStates[k];
                 if(Token.Type==k){
                 	return v.bind(this)(State,Token);
-                }else if(Token.Type=="UnpackArray"){
-                	if(Unpack===true){
-                		return new UnpackState(this.Parse(State,Token.Read("V1"),true));	 
-                	}else{
-                    	throw Error("Cannot unpack array in this statement!");
-                    }
                 }
             }
             return Token;
         },
-        ParseBlock:function(State,Unpack=false){
+        ParseBlock:function(State){
         	while(!State.IsEnd()){
-            	this.Parse(State,State.Token,Unpack);
+        		let Result = this.Parse(State,State.Token);
+        		if(Result){
+        			this.Write(Result);	
+        		}
                 State.Next();
-               	if(State.GetData("Returned")==true){
-                	State.CodeData("InLoop",false);
-                    break;
-               	}
-                if(State.GetData("Stopped")==true){
-                	State.CodeData("InLoop",false);
-                    break;
-                }
             }
             State.Close();
+        },
+        FinishedText:"",
+        Write:function(Text){
+        	this.FinishedText+=Text;
         }
     }
     for (let k in Environment){
     	Stack.MainState.NewVariable(k,Environment[k]);
     }
-    let Types={"a":"array","s":"string","n":"number","b":"boolean","o":"object","N":"null","A":"any"};
-    for(let k in Types){
-    	Stack.MainState.NewType(k,Types[k]);
-    }
     Stack.ParseBlock(Stack.MainState);
-    return Stack;
+    return Stack.FinishedText;
 }
 
 const RunCode = function(Code="",Environment={},Settings={}){
