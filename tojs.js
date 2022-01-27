@@ -1932,9 +1932,12 @@ const Interpret=(Tokens,Environment)=>{
         }
     }
     Stack.Write(`const _SS_ISPRIME=function(V1){for(let i=2;i<V1;i++)if(V1%i===0)return false;return V1>1},_SS_GETTYPE=function(v){let t =typeof v;if(t=="object"){if(!v)return"null";if(v instanceof Array)return "array"}return t};`);
+    let Ns = [];
+    Stack.Write("let ");
     for (let k in Environment){
-    	Stack.MainState.NewVariable(k,Environment[k]);
+    	Ns.push(`${k}=${String(Environment[k])}`);
     }
+    Stack.Write(Ns.join(",")+";")
     Stack.ParseBlock(Stack.MainState);
     return Stack.FinishedText;
 }
