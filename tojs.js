@@ -1806,8 +1806,8 @@ const Interpret=(Tokens,Environment)=>{
                 return t;
             },
             "For":function(State,Token){
-                let E1 = Token.Read("E1");
-                let E2 = Token.Read("E2");
+                let E1 = this.Parse(State,Token.Read("E1"));
+                let E2 = this.Parse(Token.Read("E2"));
                 let Names = Token.Read("Names");
                 let Body = Token.Read("Body");
                 let es = new LState(State.Tokens,State);
@@ -1824,11 +1824,6 @@ const Interpret=(Tokens,Environment)=>{
             },
             "IsPrime":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
-            	/*
-                for(let i=2;i<V1;i++)
-                	if(V1%i===0)return false;
-                return V1>1;
-                */
                 return `_SS_ISPRIME(${V1})`;
             },
             "Negative":function(State,Token){
