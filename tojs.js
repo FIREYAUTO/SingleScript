@@ -1614,13 +1614,13 @@ const Interpret=(Tokens,Environment)=>{
             "Call":function(State,Token){
             	let Call = this.Parse(State,Token.Read("Call"));
                 let Arguments = this.ParseArray(State,Token.Read("Arguments"));
-                return Call(...Arguments);
+                return `${Call}(${Arguments})`;
             },
             "SelfCall":function(State,Token){
             	let Object = this.Parse(State,Token.Read("Object"));
                 let Index = Token.Read("Index");
                 let Arguments = this.ParseArray(State,Token.Read("Arguments"));
-                return Object[Index](Object,...Arguments);
+                return `${Object}[$Index](${Arguments})`;
             },
             "Lt":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1836,9 +1836,9 @@ const Interpret=(Tokens,Environment)=>{
                 if(V1.Type=="Call"){
                 	let Call = this.Parse(State,V1.Read("Call"));
                     let Arguments = this.ParseArray(State,V1.Read("Arguments"));
-                    return new Call(...Arguments);
+                    return `new ${Call}(${Arguments});`
                 }else{
-                	return new (this.Parse(State,V1))();
+                	return `new ${this.Parse(State,V1)()}`;
                 }
             },
             "MakeClass":function(State,Token){
@@ -1868,7 +1868,7 @@ const Interpret=(Tokens,Environment)=>{
             	let v = Base[k];
                 let r;
                 if(typeof v=="object"&&!(v instanceof ASTBase)){
-                	r=this.ParseArray(State,v)
+                	r=`[${this.ParseArray(State,v)}]`;
                 }else{
                 	r=this.Parse(State,v,true);
                 }
