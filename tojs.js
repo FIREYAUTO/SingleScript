@@ -1658,25 +1658,27 @@ const Interpret=(Tokens,Environment)=>{
                 let Body = Token.Read("Body");
                 let Conds = Token.Read("Conditions");
                 let ns1 = new LState(Body,State);
-                this.Write(`if(${Exp}){`);
-                this.ParseBlock(ns1);
-                this.Write("}");
+                let t = ""
+                t+=`if(${Exp}){`;
+                t+=this.ParseBlock(ns1)
+                t+="}";
                 if(Conds.length>0){
                 	for(let v of Conds){
                 		if(v.Type=="ElseIf"){
                 			let ep = this.Parse(State,v.Read("Expression"));
                 			let by = v.Read("Body");
-                			this.Write(`else if(${ep}){`);
-                			this.ParseBlock(new LState(by,State));
-                			this.Write("}");
+                			t+=`else if(${ep}){`;
+                			t+=this.ParseBlock(new LState(by,State));
+                			t+="}";
                 		}else if(v.Type=="Else"){
                 			let by = v.Read("Body");
-                			this.Write("else{");
-                			this.ParseBlock(new LState(by,State));
-                			this.Write("}");
+                			t+="else{";
+                			t+=this.ParseBlock(new LState(by,State));
+                			t+="}";
                 		}
                 	}
                 }
+                return t;
             },
             "NewFunction":function(State,Token){
             	let Name = Token.Read("Name");
@@ -1696,9 +1698,11 @@ const Interpret=(Tokens,Environment)=>{
             		}
             		Params.push(n);
             	}
-                this.Write(`function ${Name}(${Params.join(",")}){`);
-                this.ParseBlock(new LState(Body,State));
-                this.Write("}");
+            	let t="";
+                t+=`function ${Name}(${Params.join(",")}){`;
+                t+=this.ParseBlock(new LState(Body,State));
+                t+="}";
+                return t;
             },
             "NewFastFunction":function(State,Token){
             	let Body = Token.Read("Body");
@@ -1717,9 +1721,11 @@ const Interpret=(Tokens,Environment)=>{
             		}
             		Params.push(n);
             	}
-                this.Write(`function(${Params.join(",")}){`);
-                this.ParseBlock(new LState(Body,State));
-                this.Write("}");
+            	let t=""
+                t+=`function(${Params.join(",")}){`;
+                t+=this.ParseBlock(new LState(Body,State));
+                t++"}";
+                return t;
             },
             "NewObject":function(State,Token){
                 let Result = [];
@@ -1744,31 +1750,35 @@ const Interpret=(Tokens,Environment)=>{
                 let Iter = this.Parse(State,Token.Read("Iterable"));
                 let VNames = Token.Read("Names");
                 let Body = Token.Read("Body");
-                this.Write(`let __iter=${Iter};for(let __k in __iter){let `);
+                let t=""
+                t+=(`let __iter=${Iter};for(let __k in __iter){let `);
                 let Ns = [];
                 let vs = ["__k","__iter[__k]","__iter"];
                 for(let kk in VNames){
                 	Ns.push(`${VNames[+kk]}=${vs[+kk]}`);
                 }
-                this.Write(Ns.join(",")+";");
+                t+=Ns.join(",")+";";
                 let ns = new LState(Body,State);
-                this.ParseBlock(ns);
-                this.Write("}__iter=undefined;");
+                t+=this.ParseBlock(ns);
+                t+=("}__iter=undefined;")
+                return t;
             },
             "Repeat":function(State,Token){
                 let Max = this.Parse(State,Token.Read("Amount"));
                 let VNames = Token.Read("Names");
                 let Body = Token.Read("Body");
-                this.Write(`for(let __i=1,__k=${Max};__i<=__k;__i++){let `);
+                let t="";
+                t+=(`for(let __i=1,__k=${Max};__i<=__k;__i++){let `);
                 let Ns = [];
                 let vs = ["__i","__l"];
                 for(let kk in VNames){
                 	Ns.push(`${VNames[+kk]}=${vs[+kk]}`);
                 }
-                this.Write(Ns.join(",")+";");
+                t+=(Ns.join(",")+";");
                 let ns = new LState(Body,State);
-                this.ParseBlock(ns);
-                this.Write("}");
+                t+=(this.ParseBlock(ns));
+                t+=("}");
+                return t;
             },
             "CommaExpression":function(State,Token){
             	let List = Token.Read("List");
@@ -1789,9 +1799,11 @@ const Interpret=(Tokens,Environment)=>{
             "While":function(State,Token){
                 let Expression = this.Parse(State,Token.Read("Expression"));
                 let Body = Token.Read("Body");
-                this.Write(`while(${Expression}){`);
-                this.ParseBlock(new LState(Body,State));
-                this.Write("}");
+                let t="";
+                t+=(`while(${Expression}){`);
+                t+=(this.ParseBlock(new LState(Body,State)));
+                t+=("}");
+                return t;
             },
             "For":function(State,Token){
                 let E1 = Token.Read("E1");
@@ -1799,15 +1811,16 @@ const Interpret=(Tokens,Environment)=>{
                 let Names = Token.Read("Names");
                 let Body = Token.Read("Body");
                 let es = new LState(State.Tokens,State);
-                this.Write("for(let ");
+                let t="";
+                t+=("for(let ");
                 let Ns = [];
                 for(let k in Names){
                 	let v = Names[k];
                 	Ns.push(`${v[0]}=${this.Parse(State,v[1])}`);
                 }
-                this.Write(Ns.join(",")+`;${E1};${E2}){`);
-                this.ParseBlock(es);
-                this.Write("}");
+                t+=(Ns.join(",")+`;${E1};${E2}){`);
+                t+=(this.ParseBlock(es));
+                t+=("}");
             },
             "IsPrime":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1847,11 +1860,11 @@ const Interpret=(Tokens,Environment)=>{
             "MakeClass":function(State,Token){
             	let Name = Token.Read("Name");
             	let Obj = this.Parse(State,Token.Read("Object"));
-            	this.Write(`function ${Name}(...__a){let Obj = ${Obj};Obj.constructor.apply(this,__a);for(let k in Obj){let v=Obj[k];this[k]=v;}return this}`);
+            	return(`function ${Name}(...__a){let Obj = ${Obj};Obj.constructor.apply(this,__a);for(let k in Obj){let v=Obj[k];this[k]=v;}return this}`);
             },
             "MakeFastClass":function(State,Token){
             	let Obj = this.Parse(State,Token.Read("Object"));
-            	this.Write(`function(...__a){let Obj = ${Obj};Obj.constructor.apply(this,__a);for(let k in Obj){let v=Obj[k];this[k]=v;}return this}`);
+            	return(`function(...__a){let Obj = ${Obj};Obj.constructor.apply(this,__a);for(let k in Obj){let v=Obj[k];this[k]=v;}return this}`);
             },
             "IsA":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1905,14 +1918,16 @@ const Interpret=(Tokens,Environment)=>{
             }
         },
         ParseBlock:function(State){
+            let t = ""
         	while(!State.IsEnd()){
         		let Result = this.Parse(State,State.Token);
         		if(Result){
-        			this.Write(Result+";");	
+        			t+=(Result+";");	
         		}
                 State.Next();
             }
             State.Close();
+            return t;
         },
         FinishedText:"",
         Write:function(Text){
@@ -1926,7 +1941,7 @@ const Interpret=(Tokens,Environment)=>{
     	Ns.push(`${k}=${String(Environment[k])}`);
     }
     Stack.Write(Ns.join(",")+";")
-    Stack.ParseBlock(Stack.MainState);
+    Stack.Write(Stack.ParseBlock(Stack.MainState));
     return Stack.FinishedText;
 }
 
