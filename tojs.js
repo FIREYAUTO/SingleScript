@@ -1821,6 +1821,7 @@ const Interpret=(Tokens,Environment)=>{
                 t+=(Ns.join(",")+`;${E1};${E2}){`);
                 t+=(this.ParseBlock(es));
                 t+=("}");
+		return t;
             },
             "IsPrime":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
