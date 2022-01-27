@@ -483,6 +483,7 @@ const AST=Tokens=>{
             	Value:"TK_SLA",
                 Type:"Operator",
                 Priority:2000,
+                Stop:true,
                 Call:function(Value,Priority){
                 	this.Next();
                 	return this.NewExpression(Value,2000);
@@ -517,6 +518,7 @@ const AST=Tokens=>{
                 if(Expression.Priority<=v.Priority){
                 	Expression = v.Call.bind(this)(Expression.Value,v.Priority);
                     Expression.Priority = Priority;
+                    if(v.Stop===true){break}
                     let Result = this.ParseComplexExpression(Expression);
                     Expression = this.NewExpression(Result,Expression.Priority);
                 }
