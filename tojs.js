@@ -1848,7 +1848,7 @@ const Interpret=(Tokens,Environment)=>{
                 if(V1.Type=="Call"){
                 	let Call = this.Parse(State,V1.Read("Call"));
                     let Arguments = this.ParseArray(State,V1.Read("Arguments"));
-                    return `new ${Call}(${Arguments});`
+                    return `new ${Call}(${Arguments})`;
                 }else{
                 	return `new ${this.Parse(State,V1)()}`;
                 }
