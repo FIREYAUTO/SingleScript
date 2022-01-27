@@ -1920,7 +1920,7 @@ const Interpret=(Tokens,Environment)=>{
         	while(!State.IsEnd()){
         		let Result = this.Parse(State,State.Token);
         		if(Result){
-        			this.Write(Result);	
+        			this.Write(Result+";");	
         		}
                 State.Next();
             }
