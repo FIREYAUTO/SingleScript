@@ -358,6 +358,8 @@ const AST=Tokens=>{
                         throw Error("Expected index name for self-call!");
                     }
                     Result.Write("Index",this.Token.Value);
+                    this.TestNext("TK_POPEN","Bracket");
+                    this.Next();
                     if(!this.CheckNext("TK_PCLOSE","Bracket")){
                     	this.Next();
                     	Result.Write("Arguments",this.ExpressionList(-1));	
