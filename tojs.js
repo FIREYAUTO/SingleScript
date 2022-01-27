@@ -1620,7 +1620,7 @@ const Interpret=(Tokens,Environment)=>{
             	let Object = this.Parse(State,Token.Read("Object"));
                 let Index = Token.Read("Index");
                 let Arguments = this.ParseArray(State,Token.Read("Arguments"));
-                return `${Object}[$Index](${Arguments})`;
+                return `${Object}[${Index}](${Arguments})`;
             },
             "Lt":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1657,29 +1657,25 @@ const Interpret=(Tokens,Environment)=>{
             	let Exp = this.Parse(State,Token.Read("Expression"));
                 let Body = Token.Read("Body");
                 let Conds = Token.Read("Conditions");
-                if(Exp){
-                	let NewState = new LState(Body,State);
-                    this.ParseBlock(NewState);
-                }else{
-                	if(Conds.length<=0){return}
-                    let Stop = false;
-                    for(let v of Conds){
-                    	if(Stop){break}
-                        if(v.Type=="ElseIf"){
-                        	let ep = this.Parse(State,v.Read("Expression"));
+                let ns1 = new LState(Body,State);
+                this.Write(`if(${Exp}){`);
+                this.ParseBlock(ns1);
+                this.Write("}");
+                if(Conds.length>0){
+                	for(let v of Conds){
+                		if(v.Type=="ElseIf"){
+                			let ep = this.Parse(State,v.Read("Expression"));
                 			let by = v.Read("Body");
-                            if(ep){
-                            	Stop=true;
-                                let ns = new LState(by,State);
-                                this.ParseBlock(ns);
-                            }
-                        }else if(v.Type=="Else"){
-                        	let by = v.Read("Body");
-                            Stop = true;
-                            let ns = new LState(by,State);
-                            this.ParseBlock(ns);
-                        }
-                    }
+                			this.Write(`else if(${ep}){`);
+                			this.ParseBlock(new LState(by,State));
+                			this.Write("}");
+                		}else if(v.Type=="Else"){
+                			let by = v.Read("Body");
+                			this.Write("else{");
+                			this.ParseBlock(new LState(by,State));
+                			this.Write("}");
+                		}
+                	}
                 }
             },
             "NewFunction":function(State,Token){
@@ -1748,26 +1744,31 @@ const Interpret=(Tokens,Environment)=>{
                 let Iter = this.Parse(State,Token.Read("Iterable"));
                 let VNames = Token.Read("Names");
                 let Body = Token.Read("Body");
-                for(let k in Iter){
-                	let v = Iter[k];
-                    let ns = new LState(Body,State,{IsLoop:true,InLoop:true});
-                    let vs = [k,v,Iter];
-                    for(let kk in VNames)ns.NewVariable(VNames[+kk],vs[+kk]);
-                    this.ParseBlock(ns);
-                    if(ns.GetData("InLoop")==false)break;
+                this.Write(`let __iter=${Iter};for(let __k in __iter){let `);
+                let Ns = [];
+                let vs = ["__k","__iter[__k]","__iter"];
+                for(let kk in VNames){
+                	Ns.push(`${VNames[+kk]}=${vs[+kk]}`);
                 }
+                this.Write(Ns.join(",")+";");
+                let ns = new LState(Body,State);
+                this.ParseBlock(ns);
+                this.Write("}__iter=undefined;");
             },
             "Repeat":function(State,Token){
                 let Max = this.Parse(State,Token.Read("Amount"));
                 let VNames = Token.Read("Names");
                 let Body = Token.Read("Body");
-                for(let i=1;i<=Max;i++){
-                    let ns = new LState(Body,State,{IsLoop:true,InLoop:true});
-                    let vs = [i,Max];
-                    for(let kk in VNames)ns.NewVariable(VNames[+kk],vs[+kk]);
-                    this.ParseBlock(ns);
-                    if(ns.GetData("InLoop")==false)break;
+                this.Write(`for(let __i=1,__k=${Max};__i<=__k;__i++){let `);
+                let Ns = [];
+                let vs = ["__i","__l"];
+                for(let kk in VNames){
+                	Ns.push(`${VNames[+kk]}=${vs[+kk]}`);
                 }
+                this.Write(Ns.join(",")+";");
+                let ns = new LState(Body,State);
+                this.ParseBlock(ns);
+                this.Write("}");
             },
             "CommaExpression":function(State,Token){
             	let List = Token.Read("List");
@@ -1783,10 +1784,10 @@ const Interpret=(Tokens,Environment)=>{
             },
             "GetType":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("Expression"));
-                return this.GetType(V1);
+                return `_SS_GETTYPE(${V1})`;
             },
             "While":function(State,Token){
-                let Expression = this.Parse(Token.Read("Expression"));
+                let Expression = this.Parse(State,Token.Read("Expression"));
                 let Body = Token.Read("Body");
                 this.Write(`while(${Expression}){`);
                 this.ParseBlock(new LState(Body,State));
@@ -1798,22 +1799,24 @@ const Interpret=(Tokens,Environment)=>{
                 let Names = Token.Read("Names");
                 let Body = Token.Read("Body");
                 let es = new LState(State.Tokens,State);
+                this.Write("for(let ");
+                let Ns = [];
                 for(let k in Names){
                 	let v = Names[k];
-                	es.NewVariable(v[0],v[1]);
+                	Ns.push(`${v[0]}=${this.Parse(State,v[1])}`);
                 }
-                while(this.Parse(es,E1)){
-                    let ns = new LState(Body,es,{IsLoop:true,InLoop:true});
-                    this.ParseBlock(ns);
-                    if(ns.GetData("InLoop")==false)break;
-                    this.Parse(es,E2);
-                }
+                this.Write(Ns.join(",")+`;${E1};${E2}){`);
+                this.ParseBlock(es);
+                this.Write("}");
             },
             "IsPrime":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
+            	/*
                 for(let i=2;i<V1;i++)
                 	if(V1%i===0)return false;
                 return V1>1;
+                */
+                return `_SS_ISPRIME(${V1})`;
             },
             "Negative":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1928,6 +1931,7 @@ const Interpret=(Tokens,Environment)=>{
         	this.FinishedText+=Text;
         }
     }
+    Stack.Write(`const _SS_ISPRIME=function(V1){for(let i=2;i<V1;i++)if(V1%i===0)return false;return V1>1},_SS_GETTYPE=function(v){let t =typeof v;if(t=="object"){if(!v)return"null";if(v instanceof Array)return "array"}return t};`);
     for (let k in Environment){
     	Stack.MainState.NewVariable(k,Environment[k]);
     }
