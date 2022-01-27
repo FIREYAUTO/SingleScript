@@ -1620,7 +1620,7 @@ const Interpret=(Tokens,Environment)=>{
             	let Object = this.Parse(State,Token.Read("Object"));
                 let Index = Token.Read("Index");
                 let Arguments = this.ParseArray(State,Token.Read("Arguments"));
-                return `${Object}[${Index}](${Arguments})`;
+                return `${Object}[${Index}](${Object},${Arguments})`;
             },
             "Lt":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1660,7 +1660,7 @@ const Interpret=(Tokens,Environment)=>{
                 let ns1 = new LState(Body,State);
                 let t = ""
                 t+=`if(${Exp}){`;
-                t+=this.ParseBlock(ns1)
+                t+=this.ParseBlock(ns1);
                 t+="}";
                 if(Conds.length>0){
                 	for(let v of Conds){
@@ -1724,7 +1724,7 @@ const Interpret=(Tokens,Environment)=>{
             	let t=""
                 t+=`function(${Params.join(",")}){`;
                 t+=this.ParseBlock(new LState(Body,State));
-                t++"}";
+                t+="}";
                 return t;
             },
             "NewObject":function(State,Token){
@@ -1918,7 +1918,7 @@ const Interpret=(Tokens,Environment)=>{
             }
         },
         ParseBlock:function(State){
-            let t = ""
+            let t = "";
         	while(!State.IsEnd()){
         		let Result = this.Parse(State,State.Token);
         		if(Result){
