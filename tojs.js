@@ -1807,10 +1807,10 @@ const Interpret=(Tokens,Environment)=>{
             },
             "For":function(State,Token){
                 let E1 = this.Parse(State,Token.Read("E1"));
-                let E2 = this.Parse(Token.Read("E2"));
+                let E2 = this.Parse(State,Token.Read("E2"));
                 let Names = Token.Read("Names");
                 let Body = Token.Read("Body");
-                let es = new LState(State.Tokens,State);
+                let es = new LState(Body,State);
                 let t="";
                 t+=("for(let ");
                 let Ns = [];
