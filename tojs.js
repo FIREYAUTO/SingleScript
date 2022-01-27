@@ -1845,10 +1845,13 @@ const Interpret=(Tokens,Environment)=>{
                 }
             },
             "MakeClass":function(State,Token){
-            	State.NewVariable(Token.Read("Name"),this.ClassState(State,Token));
+            	let Name = Token.Read("Name");
+            	let Obj = this.Parse(State,Token.Read("Object"));
+            	this.Write(`function ${Name}(...__a){let Obj = ${Obj};Obj.constructor.apply(this,__a);for(let k in Obj){let v=Obj[k];this[k]=v;}return this}`);
             },
             "MakeFastClass":function(State,Token){
-            	return this.ClassState(State,Token);
+            	let Obj = this.Parse(State,Token.Read("Object"));
+            	this.Write(`function(...__a){let Obj = ${Obj};Obj.constructor.apply(this,__a);for(let k in Obj){let v=Obj[k];this[k]=v;}return this}`);
             },
             "IsA":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1887,20 +1890,6 @@ const Interpret=(Tokens,Environment)=>{
             }
             return t;
         },
-        ClassState:function(State,Token){
-        	let self = this;
-            let Obj = this.Parse(State,Token.Read("Object"));
-            let Call = function(...a){
-            	let r = Obj.constructor(this,...a);
-                if(r===undefined){
-                	r=this;
-                }
-                return r;
-            };
-            Call.constructor=Obj.constructor;
-            Call.prototype=Obj;
-            return Call;
-        },
         Parse:function(State,Token,Unpack=false){
         	if(!(Token instanceof ASTBase)){
         		if(typeof Token=="string"){
@@ -1914,7 +1903,6 @@ const Interpret=(Tokens,Environment)=>{
                 	return v.bind(this)(State,Token);
                 }
             }
-            return Token;
         },
         ParseBlock:function(State){
         	while(!State.IsEnd()){
