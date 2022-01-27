@@ -1690,7 +1690,7 @@ const Interpret=(Tokens,Environment)=>{
             		if(v instanceof Array){
             			if(v[2]===true){
             				n=`...${v[0]}`;
-            			}else if(v[1]){
+            			}else if(v[1]!=undefined){
             				n=`${v[0]}=${this.Parse(State,v[1])}`;
             			}
             		}else{
@@ -1713,7 +1713,7 @@ const Interpret=(Tokens,Environment)=>{
             		if(v instanceof Array){
             			if(v[2]===true){
             				n=`...${v[0]}`;
-            			}else if(v[1]){
+            			}else if(v[1]!=undefined){
             				n=`${v[0]}=${this.Parse(State,v[1])}`;
             			}
             		}else{
