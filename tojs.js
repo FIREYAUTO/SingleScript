@@ -1789,7 +1789,10 @@ const Interpret=(Tokens,Environment)=>{
                     let Ns = [];
                     let vs = [pns[1],`${pns[0]}[${pns[1]}]`,pns[0]];
                     for(let kk in VNames){
-                    	Ns.push(`${VNames[+kk]}=${vs[+kk]}`);
+                        let Name = VNames[+kk];
+                        let ProxyName = ns.GenerateProxyName();
+                        ns.NewVariable(Name,ProxyName);
+                    	Ns.push(`${ProxyName}=${vs[+kk]}`);
                     }
                     t+=Ns.join(",")+";";
                 }
@@ -1810,7 +1813,10 @@ const Interpret=(Tokens,Environment)=>{
                     let Ns = [];
                     let vs = [pns[0],pns[1]];
                     for(let kk in VNames){
-                    	Ns.push(`${VNames[+kk]}=${vs[+kk]}`);
+                        let Name = VNames[+kk];
+                        let ProxyName = ns.GenerateProxyName();
+                        ns.NewVariable(Name,ProxyName);
+                    	Ns.push(`${ProxyName}=${vs[+kk]}`);
                     }
                     t+=(Ns.join(",")+";");
                 }
