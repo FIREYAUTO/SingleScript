@@ -1385,12 +1385,26 @@ class LState {
             	this.Data[k]=Extra[k];
             }
         }
+        let VI = 0;
+        let P = this.Parent;
+        while(P){
+            VI++;
+            P=P.Parent;
+        }
+        this.StackIndex=VI;
+        this.VariableIndex=0;
         if(Parent&&Parent instanceof LState){
         	Parent.Children.push(this);
             this.Exports=Parent.Exports;
         }
         this.Variables=[];
         this.TypeVars={};
+    }
+    GenerateProxyName(Increment=true){
+        let Result = `_s${this.StackIndex}${this.VariableIndex}`;
+        if(Increment){
+            this.VariableIndex++;
+        }
     }
     IsType(Name){
     	return this.TypeVars.hasOwnProperty(Name);
@@ -1459,10 +1473,10 @@ class LState {
         }
         this.Variables=[];
     }
-    VariablePrototype(Name,Value){
+    VariablePrototype(Name,ProxyName){
     	return {
             Name:Name,
-            Value:Value,
+            ProxyName:ProxyName,
         }
     }
     GetRawVariable(Name){
@@ -1484,24 +1498,24 @@ class LState {
     }
    	GetVariable(Name){
     	if(this.IsVariable(Name)){
-        	return this.GetRawVariable(Name).Value;
+        	return this.GetRawVariable(Name).ProxyName;
         }else if(this.Parent){
         	return this.Parent.GetVariable(Name);
         }
     }
-    SetVariable(Name,Value){
+    SetVariable(Name,ProxyName){
     	if(this.IsVariable(Name)){
         	let Var = this.GetRawVariable(Name);
-            Var.Value = Value;
+            Var.ProxyName = ProxyName;
         }else if(this.Parent){
-        	this.Parent.SetVariable(Name,Value);
+        	this.Parent.SetVariable(Name,ProxyName);
         }else{
-        	this.NewVariable(Name,Value);
+        	this.NewVariable(Name,ProxyName);
         }
     }
-    NewVariable(Name,Value,Extra={}){
+    NewVariable(Name,ProxyName,Extra={}){
     	if(!this.IsVariable(Name)){
-        	let Var = this.VariablePrototype(Name,Value);
+        	let Var = this.VariablePrototype(Name,ProxyName);
             if(Extra){
             	for(let k in Extra){
                 	Var[k]=Extra[k];
@@ -1539,7 +1553,7 @@ const Interpret=(Tokens,Environment)=>{
         MainState:new LState(Tokens),
         ParseStates:{
         	"GetVariable":function(State,Token){
-            	return Token.Read("Name");
+            	return State.GetVariable(Token.Read("Name"));
             },
             "SetVariable":function(State,Token){
             	let Name = Token.Read("Name");
@@ -1547,7 +1561,7 @@ const Interpret=(Tokens,Environment)=>{
                 let Text = "";
                 if(Name instanceof ASTNode){
                 	if(Name.Type=="GetVariable"){
-                    	Name = Name.Read("Name");
+                    	Name = State.GetVariable(Name.Read("Name"));
                         Text = `${Name}=${Value}`;
                     }else if(Name.Type=="GetIndex"){
                     	let Obj = this.Parse(State,Name.Read("Object"));
@@ -1558,7 +1572,7 @@ const Interpret=(Tokens,Environment)=>{
             	return Text;
             },
             "UpdateVariable":function(State,Token){
-            	let Name = Token.Read("Name");
+            	let Name = State.GetVariable(Token.Read("Name"));
                 let Expression = this.Parse(State,Token.Read("Expression"));
                 return `${Name}=${Expression}`;
             },
@@ -1567,9 +1581,12 @@ const Interpret=(Tokens,Environment)=>{
             	let Texts = [];
                 for(let v of Variables){
                     let Value = this.Parse(State,v[1]);
-                	Texts.push(`${v[0]}=${Value}`);
+                    let Name = v[0];
+                    let ProxyName = State.GenerateProxyName();
+                    State.NewVariable(Name,ProxyName);
+                	Texts.push(`${ProxyName}=${Value}`);
                 }
-                return "let "+Texts.join(",")+";"
+                return "let "+Texts.join(",");
             },
         	"Add":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1618,7 +1635,7 @@ const Interpret=(Tokens,Environment)=>{
             },
             "SelfCall":function(State,Token){
             	let Object = this.Parse(State,Token.Read("Object"));
-                let Index = Token.Read("Index");
+                let Index = this.Parse(State,Token.Read("Index"));
                 let Arguments = this.ParseArray(State,Token.Read("Arguments"));
                 return `${Object}[${Index}](${Object},${Arguments})`;
             },
@@ -1648,10 +1665,10 @@ const Interpret=(Tokens,Environment)=>{
             },
             "Return":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
-                return `return ${V1};`;
+                return `return ${V1}`;
             },
             "Break":function(State,Token){
-                return "break;";
+                return "break";
             },
             "If":function(State,Token){
             	let Exp = this.Parse(State,Token.Read("Expression"));
@@ -1682,25 +1699,32 @@ const Interpret=(Tokens,Environment)=>{
             },
             "NewFunction":function(State,Token){
             	let Name = Token.Read("Name");
+            	let ProxyName = State.GenerateProxyName();
+            	State.NewVariable(Name,ProxyName);
             	let Body = Token.Read("Body");
             	let Parameters = Token.Read("Parameters");
             	let Params = [];
+            	let S = new LState(Body,State);
             	for(let v of Parameters){
             		let n = "";
             		if(v instanceof Array){
+            		    let pn = S.GenerateProxyName();
+            		    S.NewVariable(v[0],pn);
             			if(v[2]===true){
-            				n=`...${v[0]}`;
+            				n=`...${pn}`;
             			}else if(v[1]!=undefined){
-            				n=`${v[0]}=${this.Parse(State,v[1])}`;
+            				n=`${pn}=${this.Parse(State,v[1])}`;
             			}
             		}else{
-            			n=v;
+            		    let pn = S.GenerateProxyName();
+            		    S.NewVariable(v,pn);
+            			n=pn;
             		}
             		Params.push(n);
             	}
             	let t="";
-                t+=`function ${Name}(${Params.join(",")}){`;
-                t+=this.ParseBlock(new LState(Body,State));
+                t+=`function ${ProxyName}(${Params.join(",")}){`;
+                t+=this.ParseBlock(S);
                 t+="}";
                 return t;
             },
@@ -1708,22 +1732,27 @@ const Interpret=(Tokens,Environment)=>{
             	let Body = Token.Read("Body");
             	let Parameters = Token.Read("Parameters");
             	let Params = [];
+            	let S = new LState(Body,State);
             	for(let v of Parameters){
             		let n = "";
             		if(v instanceof Array){
+            		    let pn = S.GenerateProxyName();
+            		    S.NewVariable(v[0],pn);
             			if(v[2]===true){
-            				n=`...${v[0]}`;
+            				n=`...${pn}`;
             			}else if(v[1]!=undefined){
-            				n=`${v[0]}=${this.Parse(State,v[1])}`;
+            				n=`${pn}=${this.Parse(State,v[1])}`;
             			}
             		}else{
-            			n=v;
+            		    let pn = S.GenerateProxyName();
+            		    S.NewVariable(v,pn);
+            			n=pn;
             		}
             		Params.push(n);
             	}
             	let t=""
                 t+=`function(${Params.join(",")}){`;
-                t+=this.ParseBlock(new LState(Body,State));
+                t+=this.ParseBlock(S);
                 t+="}";
                 return t;
             },
@@ -1750,17 +1779,21 @@ const Interpret=(Tokens,Environment)=>{
                 let Iter = this.Parse(State,Token.Read("Iterable"));
                 let VNames = Token.Read("Names");
                 let Body = Token.Read("Body");
-                let t=""
-                t+=(`let __iter=${Iter};for(let __k in __iter){let `);
-                let Ns = [];
-                let vs = ["__k","__iter[__k]","__iter"];
-                for(let kk in VNames){
-                	Ns.push(`${VNames[+kk]}=${vs[+kk]}`);
-                }
-                t+=Ns.join(",")+";";
+                let t="";
                 let ns = new LState(Body,State);
+                let pns=[ns.GenerateProxyName(),ns.GenerateProxyName()];
+                t+=(`let ${pns[0]}=${Iter};for(let ${pns[1]} in ${pns[0]}){`);
+                if(VNames.length>0){
+                    t+="let "
+                    let Ns = [];
+                    let vs = [pns[1],`${pns[0]}[${pns[1]}]`,pns[0]];
+                    for(let kk in VNames){
+                    	Ns.push(`${VNames[+kk]}=${vs[+kk]}`);
+                    }
+                    t+=Ns.join(",")+";";
+                }
                 t+=this.ParseBlock(ns);
-                t+=("}__iter=undefined;")
+                t+=(`}${pns[0]}=undefined;`)
                 return t;
             },
             "Repeat":function(State,Token){
@@ -1768,14 +1801,18 @@ const Interpret=(Tokens,Environment)=>{
                 let VNames = Token.Read("Names");
                 let Body = Token.Read("Body");
                 let t="";
-                t+=(`for(let __i=1,__k=${Max};__i<=__k;__i++){let `);
-                let Ns = [];
-                let vs = ["__i","__l"];
-                for(let kk in VNames){
-                	Ns.push(`${VNames[+kk]}=${vs[+kk]}`);
-                }
-                t+=(Ns.join(",")+";");
                 let ns = new LState(Body,State);
+                let pns=[ns.GenerateProxyName(),ns.GenerateProxyName()];
+                t+=(`for(let ${pns[0]}=1,${pns[1]}=${Max};${pns[0]}<=${pns[1]};${pns[0]}++){`);
+                if(VNames.length>0){
+                    t+="let ";
+                    let Ns = [];
+                    let vs = [pns[0],pns[1]];
+                    for(let kk in VNames){
+                    	Ns.push(`${VNames[+kk]}=${vs[+kk]}`);
+                    }
+                    t+=(Ns.join(",")+";");
+                }
                 t+=(this.ParseBlock(ns));
                 t+=("}");
                 return t;
@@ -1816,12 +1853,15 @@ const Interpret=(Tokens,Environment)=>{
                 let Ns = [];
                 for(let k in Names){
                 	let v = Names[k];
-                	Ns.push(`${v[0]}=${this.Parse(State,v[1])}`);
+                	let Name = v[0];
+                	let ProxyName = es.GenerateProxyName();
+                	es.NewVariable(Name,ProxyName);
+                	Ns.push(`${ProxyName}=${this.Parse(es,v[1])}`);
                 }
                 t+=(Ns.join(",")+`;${E1};${E2}){`);
                 t+=(this.ParseBlock(es));
                 t+=("}");
-		return t;
+		        return t;
             },
             "IsPrime":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1838,7 +1878,9 @@ const Interpret=(Tokens,Environment)=>{
                     	if(v.Type=="GetIndex"){
                         	let Obj = this.Parse(State,v.Read("Object"));
                             let Ind = this.Parse(State,v.Read("Index"));
-                            return `delete ${Obj}[${Ind}];`;
+                            return `delete ${Obj}[${Ind}]`;
+                        }else if(v.Type=="GetVariable"){
+                            State.DeleteVariable(v.Read("Name"));
                         }
                     }
                 }
@@ -1855,12 +1897,14 @@ const Interpret=(Tokens,Environment)=>{
             },
             "MakeClass":function(State,Token){
             	let Name = Token.Read("Name");
+            	let ProxyName = State.GenerateProxyName();
+            	State.NewVariable(Name,ProxyName);
             	let Obj = this.Parse(State,Token.Read("Object"));
-            	return(`function ${Name}(...__a){let Obj = ${Obj};Obj.constructor.apply(this,__a);for(let k in Obj){let v=Obj[k];this[k]=v;}return this}`);
+            	return(`function ${ProxyName}(...__a){let __o=${Obj};for(let k in __o)if(k!="constructor")this[k]=__o[k];__a.unshift(this);__o.constructor.apply(this,__a);return this}`);
             },
             "MakeFastClass":function(State,Token){
             	let Obj = this.Parse(State,Token.Read("Object"));
-            	return(`function(...__a){let Obj = ${Obj};Obj.constructor.apply(this,__a);for(let k in Obj){let v=Obj[k];this[k]=v;}return this}`);
+            	return(`function(...__a){let __o=${Obj};for(let k in __o)if(k!="constructor")this[k]=__o[k];__a.unshift(this);__o.constructor.apply(this,__a);return this}`);
             },
             "IsA":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1932,11 +1976,24 @@ const Interpret=(Tokens,Environment)=>{
     }
     Stack.Write(`const _SS_ISPRIME=function(V1){for(let i=2;i<V1;i++)if(V1%i===0)return false;return V1>1},_SS_GETTYPE=function(v){let t =typeof v;if(t=="object"){if(!v)return"null";if(v instanceof Array)return "array"}return t};`);
     let Ns = [];
-    Stack.Write("let ");
     for (let k in Environment){
-    	Ns.push(`${k}=${String(Environment[k])}`);
+        let v = Environment[k];
+        let pn = Stack.MainState.GenerateProxyName();
+        Stack.MainState.NewVariable(k,pn);
+        let nv = v;
+        if(v.Type=="Global"){
+            nv=window[v.Value];
+        }else if(v.Type=="String"){
+            nv=`"${v.Value}"`;
+        }else{
+            nv=String(v.Value);
+        }
+    	Ns.push(`${k}=${nv}`);
     }
-    Stack.Write(Ns.join(",")+";")
+    if(Ns.length>0){
+        Stack.Write("let ");
+        Stack.Write(Ns.join(",")+";");
+    }
     Stack.Write(Stack.ParseBlock(Stack.MainState));
     return Stack.FinishedText;
 }
