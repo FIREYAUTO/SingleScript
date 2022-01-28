@@ -1989,7 +1989,7 @@ const Interpret=(Tokens,Environment)=>{
         }else{
             nv=String(v.Value);
         }
-    	Ns.push(`${k}=${nv}`);
+    	Ns.push(`${pn}=${nv}`);
     }
     if(Ns.length>0){
         Stack.Write("let ");
