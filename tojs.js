@@ -1850,8 +1850,6 @@ const Interpret=(Tokens,Environment)=>{
                 return t;
             },
             "For":function(State,Token){
-                let E1 = this.Parse(State,Token.Read("E1"));
-                let E2 = this.Parse(State,Token.Read("E2"));
                 let Names = Token.Read("Names");
                 let Body = Token.Read("Body");
                 let es = new LState(Body,State);
@@ -1865,6 +1863,8 @@ const Interpret=(Tokens,Environment)=>{
                 	es.NewVariable(Name,ProxyName);
                 	Ns.push(`${ProxyName}=${this.Parse(es,v[1])}`);
                 }
+		let E1 = this.Parse(es,Token.Read("E1"));
+                let E2 = this.Parse(es,Token.Read("E2"));
                 t+=(Ns.join(",")+`;${E1};${E2}){`);
                 t+=(this.ParseBlock(es));
                 t+=("}");
