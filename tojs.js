@@ -1405,6 +1405,7 @@ class LState {
         if(Increment){
             this.VariableIndex++;
         }
+        return Result;
     }
     IsType(Name){
     	return this.TypeVars.hasOwnProperty(Name);
