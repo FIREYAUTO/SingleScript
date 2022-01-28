@@ -1982,7 +1982,7 @@ const Interpret=(Tokens,Environment)=>{
         Stack.MainState.NewVariable(k,pn);
         let nv = v;
         if(v.Type=="Global"){
-            nv=window[v.Value];
+            nv=v.Value;
         }else if(v.Type=="String"){
             nv=`"${v.Value}"`;
         }else{
