@@ -1574,6 +1574,28 @@ const Interpret=(Tokens,Environment)=>{
             },
             "UpdateVariable":function(State,Token){
             	let Name = State.GetVariable(Token.Read("Name"));
+		let e = Token.Read("Expression");
+		if(e instanceof ASTBase){
+			let Do=false;
+			let Sign="";
+			let Val=undefined;
+			if(e.Type=="Add"){
+				Do=true,Sign="+",Val=this.Parse(State,e.Read("V2"));
+			}else if(e.Type=="Sub"){
+				Do=true,Sign="-",Val=this.Parse(State,e.Read("V2"));
+			}else if(e.Type=="Mul"){
+				Do=true,Sign="*",Val=this.Parse(State,e.Read("V2"));
+			}else if(e.Type=="Div"){
+				Do=true,Sign="/",Val=this.Parse(State,e.Read("V2"));
+			}else if(e.Type=="Mod"){
+				Do=true,Sign="%",Val=this.Parse(State,e.Read("V2"));
+			}else if(e.Type=="Pow"){
+				Do=true,Sign="**",Val=this.Parse(State,e.Read("V2"));
+			}
+			if(Do){
+				return `${Name}${Sign}=${Val}`;	
+			}
+		}
                 let Expression = this.Parse(State,Token.Read("Expression"));
                 return `${Name}=${Expression}`;
             },
@@ -1660,6 +1682,27 @@ const Interpret=(Tokens,Environment)=>{
                 return `(${V1}&&${V2})`;
             },
             "Or":function(State,Token){
+		let v1=Token.Read("V1");
+		let v2=Token.Read("V2");
+		if(v1 instanceof ASTBase && v2 instanceof ASTBase){
+			if((v1.Type=="Eqs"&&v2.Type=="Lt")||(v1.Type=="Lt"&&v2.Type=="Eqs")){
+				let v1v1 = this.Parse(State,v1.Read("V1"));
+				let v1v2 = this.Parse(State,v1.Read("V2"));
+				let v2v1 = this.Parse(State,v2.Read("V1"));
+				let v2v2 = this.Parse(State,v2.Read("V2"));
+				if(v1v1==v2v1&&v1v2==v2v2){
+					return `(${v1v1}<=${v1v2})`;	
+				}
+			}else if((v1.Type=="Eqs"&&v2.Type=="Gt")||(v1.Type=="Gt"&&v2.Type=="Eqs")){
+				let v1v1 = this.Parse(State,v1.Read("V1"));
+				let v1v2 = this.Parse(State,v1.Read("V2"));
+				let v2v1 = this.Parse(State,v2.Read("V1"));
+				let v2v2 = this.Parse(State,v2.Read("V2"));
+				if(v1v1==v2v1&&v1v2==v2v2){
+					return `(${v1v1}>=${v1v2})`;	
+				}
+			}
+		}
             	let V1 = this.Parse(State,Token.Read("V1"));
             	let V2 = this.Parse(State,Token.Read("V2"));
                 return `(${V1}||${V2})`;
