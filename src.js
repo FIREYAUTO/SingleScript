@@ -1500,17 +1500,18 @@ class LState {
         }
     }
     NewVariable(Name,Value,Extra={}){
-    	if(!this.IsVariable(Name)){
-        	let Var = this.VariablePrototype(Name,Value);
-            if(Extra){
-            	for(let k in Extra){
-                	Var[k]=Extra[k];
-                }
-            }
-        	this.Variables.push(Var);
+	    let Var = this.VariablePrototype(Name,Value);
+	    if(Extra){
+		    for(let k in Extra){
+				Var[k]=Extra[k];	
+			}
+		}
+    	if(this.IsVariable(Name)){
+        	this.DeleteVariable(Name,true);
         }
+	this.Variables.push(Var);
     }
-    DeleteVariable(Name){
+    DeleteVariable(Name,Local=false){
     	if(this.IsVariable(Name)){
         	for(let k in this.Variables){
             	k=+k;
@@ -1520,7 +1521,7 @@ class LState {
                     break;
                 }
             }
-        }else if(this.Parent){
+        }else if(this.Parent&&!Local){
         	this.Parent.DeleteVariable(Name);
         }
     }
