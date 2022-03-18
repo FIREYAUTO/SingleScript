@@ -1878,19 +1878,12 @@ const Interpret=(Tokens,Environment)=>{
                 for(let x of vs){
                     v[x.Name]=x.Value;
                 }
-                xml.onreadystatechange=function(){
-                	if(this.readyState==this.DONE){
-                    	imported=RunCode(this.response,v).MainState.Exports;
-                        let ns = new LState(Body,State);
-                    	ns.NewVariable(Name,imported);
-                        for(let k in v){
-                        	ns.NewVariable(k,v[k]);
-                        }
-                        self.ParseBlock(ns);
-                    }
-                }
-                xml.open("GET",URL);
+                xml.open("GET",URL,false);
       			xml.send();
+		 imported=RunCode(this.response,v).MainState.Exports;
+                        let ns = new LState(Body,State);
+                    	State.NewVariable(Name,imported);
+                        self.ParseBlock(ns);
             },
             "NewType":function(State,Token){
               let Name = Token.Read("Name");
