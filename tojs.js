@@ -1826,7 +1826,7 @@ const Interpret=(Tokens,Environment)=>{
                 let Body = Token.Read("Body");
                 let t="";
                 let ns = new LState(Body,State);
-                let pns=[ns.GenerateProxyName(),ns.GenerateProxyName()];
+                let pns=[ns.GenerateProxyName(),ns.GenerateProxyName(),ns.GenerateProxyName()];
                 t+=(`let ${pns[0]}=${Iter};for(let ${pns[1]} in ${pns[0]}){`);
                 if(VNames.length>0){
                     t+="let "
@@ -1834,7 +1834,7 @@ const Interpret=(Tokens,Environment)=>{
                     let vs = [pns[1],`${pns[0]}[${pns[1]}]`,pns[0]];
                     for(let kk in VNames){
                         let Name = VNames[kk=+kk];
-			let N=pns[kk];
+			let N=pns[kk+1];
                         ns.NewVariable(Name,N);
 			if(kk==0)continue;
                     	Ns.push(`${N}=${vs[kk]}`);
@@ -1860,7 +1860,7 @@ const Interpret=(Tokens,Environment)=>{
                     for(let kk in VNames){
                         let Name = VNames[kk=+kk];
                         //let ProxyName = ns.GenerateProxyName();
-                        ns.NewVariable(Name,pns[kk]);
+                        ns.NewVariable(Name,vs[kk]);
                     	//Ns.push(`${ProxyName}=${vs[+kk]}`);
                     }
                     t+=(Ns.join(",")+";");
