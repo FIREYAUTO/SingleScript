@@ -1854,7 +1854,7 @@ const Interpret=(Tokens,Environment)=>{
                 let pns=[ns.GenerateProxyName(),ns.GenerateProxyName()];
                 t+=(`for(let ${pns[0]}=1,${pns[1]}=${Max};${pns[0]}<=${pns[1]};${pns[0]}++){`);
                 if(VNames.length>0){
-                    t+="let ";
+                    //t+="let ";
                     let Ns = [];
                     let vs = [pns[0],pns[1]];
                     for(let kk in VNames){
