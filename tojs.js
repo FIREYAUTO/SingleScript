@@ -1863,7 +1863,7 @@ const Interpret=(Tokens,Environment)=>{
                         ns.NewVariable(Name,vs[kk]);
                     	//Ns.push(`${ProxyName}=${vs[+kk]}`);
                     }
-                    t+=(Ns.join(",")+";");
+                    //t+=(Ns.join(",")+";");
                 }
                 t+=(this.ParseBlock(ns));
                 t+=("}");
