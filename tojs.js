@@ -1833,10 +1833,11 @@ const Interpret=(Tokens,Environment)=>{
                     let Ns = [];
                     let vs = [pns[1],`${pns[0]}[${pns[1]}]`,pns[0]];
                     for(let kk in VNames){
-                        let Name = VNames[+kk];
-                        let ProxyName = ns.GenerateProxyName();
-                        ns.NewVariable(Name,ProxyName);
-                    	Ns.push(`${ProxyName}=${vs[+kk]}`);
+                        let Name = VNames[kk=+kk];
+			let N=pns[kk];
+                        ns.NewVariable(Name,N);
+			if(kk==0)continue;
+                    	Ns.push(`${N}=${vs[kk]}`);
                     }
                     t+=Ns.join(",")+";";
                 }
@@ -1857,10 +1858,10 @@ const Interpret=(Tokens,Environment)=>{
                     let Ns = [];
                     let vs = [pns[0],pns[1]];
                     for(let kk in VNames){
-                        let Name = VNames[+kk];
-                        let ProxyName = ns.GenerateProxyName();
-                        ns.NewVariable(Name,ProxyName);
-                    	Ns.push(`${ProxyName}=${vs[+kk]}`);
+                        let Name = VNames[kk=+kk];
+                        //let ProxyName = ns.GenerateProxyName();
+                        ns.NewVariable(Name,pns[kk]);
+                    	//Ns.push(`${ProxyName}=${vs[+kk]}`);
                     }
                     t+=(Ns.join(",")+";");
                 }
