@@ -1564,7 +1564,13 @@ const Interpret=(Tokens,Environment)=>{
                 if(Name instanceof ASTNode){
                 	if(Name.Type=="GetVariable"){
                     	Name = State.GetVariable(Name.Read("Name"));
-                        Text = `${Name}=${Value}`;
+			if(Value==`(${Name}+1)`){
+				Text=`++${Name}`;	
+			}else if(Value==`(${Name}-1)`){
+				Text=`--${Name}`;	
+			}else{
+                        	Text = `${Name}=${Value}`;
+			}
                     }else if(Name.Type=="GetIndex"){
                     	let Obj = this.Parse(State,Name.Read("Object"));
                         let Ind = this.Parse(State,Name.Read("Index"));
