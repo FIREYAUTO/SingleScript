@@ -551,6 +551,9 @@ const AST=Tokens=>{
                 	this.Next();
                     let Result = this.ParseExpression(-1,true);
                     this.TestNext("TK_PCLOSE","Bracket");
+			if(Result instanceof ASTBase){
+				Result.NeedsParens=true;	
+			}
                     this.Next();
                 	return [Result,Priority];
                 },
@@ -1621,27 +1624,27 @@ const Interpret=(Tokens,Environment)=>{
         	"Add":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return `(${V1}+${V2})`;
+                return `${V1}+${V2}`;
             },
             "Sub":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return `(${V1}-${V2})`;
+                return `${V1}-${V2}`;
             },
             "Mul":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return `(${V1}*${V2})`;
+                return `${V1}*${V2}`;
             },
             "Div":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return `(${V1}/${V2})`;
+                return `${V1}/${V2}`;
             },
             "Mod":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return `(${V1}%${V2})`;
+                return `${V1}%${V2}`;
             },
             "Pow":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1651,7 +1654,7 @@ const Interpret=(Tokens,Environment)=>{
             "Eqs":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return `(${V1}==${V2})`;
+                return `${V1}==${V2}`;
             },
             "GetIndex":function(State,Token){
             	let Object = this.Parse(State,Token.Read("Object"));
@@ -1672,12 +1675,12 @@ const Interpret=(Tokens,Environment)=>{
             "Lt":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return `(${V1}<${V2})`;
+                return `${V1}<${V2}`;
             },
             "Gt":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return `(${V1}>${V2})`;
+                return `${V1}>${V2}`;
             },
             "Not":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1686,7 +1689,7 @@ const Interpret=(Tokens,Environment)=>{
             "And":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
             	let V2 = this.Parse(State,Token.Read("V2"));
-                return `(${V1}&&${V2})`;
+                return `${V1}&&${V2}`;
             },
             "Or":function(State,Token){
 		let v1=Token.Read("V1");
@@ -1698,7 +1701,7 @@ const Interpret=(Tokens,Environment)=>{
 				let v2v1 = this.Parse(State,v2.Read("V1"));
 				let v2v2 = this.Parse(State,v2.Read("V2"));
 				if(v1v1==v2v1&&v1v2==v2v2){
-					return `(${v1v1}<=${v1v2})`;	
+					return `${v1v1}<=${v1v2}`;	
 				}
 			}else if((v1.Type=="Eqs"&&v2.Type=="Gt")||(v1.Type=="Gt"&&v2.Type=="Eqs")){
 				let v1v1 = this.Parse(State,v1.Read("V1"));
@@ -1706,13 +1709,13 @@ const Interpret=(Tokens,Environment)=>{
 				let v2v1 = this.Parse(State,v2.Read("V1"));
 				let v2v2 = this.Parse(State,v2.Read("V2"));
 				if(v1v1==v2v1&&v1v2==v2v2){
-					return `(${v1v1}>=${v1v2})`;	
+					return `${v1v1}>=${v1v2}`;	
 				}
 			}
 		}
             	let V1 = this.Parse(State,Token.Read("V1"));
             	let V2 = this.Parse(State,Token.Read("V2"));
-                return `(${V1}||${V2})`;
+                return `${V1}||${V2}`;
             },
             "Return":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
@@ -1927,7 +1930,7 @@ const Interpret=(Tokens,Environment)=>{
             },
             "Negative":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
-                return `(-${V1})`;
+                return `-${V1}`;
             },
             "Delete":function(State,Token){
             	let Names = Token.Read("Names");
@@ -1967,7 +1970,7 @@ const Interpret=(Tokens,Environment)=>{
             "IsA":function(State,Token){
             	let V1 = this.Parse(State,Token.Read("V1"));
                 let V2 = this.Parse(State,Token.Read("V2"));
-                return `(${V1} instanceof ${V2})`;
+                return `${V1} instanceof ${V2}`;
             },
             "ExpressionList":function(State,Token){
               let V1 = this.Parse(State,Token.Read("V1"));
@@ -2011,7 +2014,9 @@ const Interpret=(Tokens,Environment)=>{
             for(let k in this.ParseStates){
             	let v = this.ParseStates[k];
                 if(Token.Type==k){
-                	return v.bind(this)(State,Token);
+			let r = v.bind(this)(State,Token);
+			if(Token.NeedsParens)r=`(${r})`;
+                	return r;
                 }
             }
         },
